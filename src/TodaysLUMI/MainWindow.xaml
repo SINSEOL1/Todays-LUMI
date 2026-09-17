@@ -7,14 +7,14 @@
         MinWidth="700"
         MinHeight="440"
         WindowStartupLocation="CenterScreen">
-    <Grid Background="#111317">
+    <Grid Background="#F5F6F8">
         <Grid.RowDefinitions>
             <RowDefinition Height="46"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0"
-                BorderBrush="#252A31"
+                BorderBrush="#DCE1E7"
                 BorderThickness="0,0,0,1">
             <Grid Margin="18,0">
                 <TextBlock Text="오늘의 루미"
@@ -26,7 +26,7 @@
                            HorizontalAlignment="Right"
                            VerticalAlignment="Center"
                            FontSize="11"
-                           Foreground="#747B85"/>
+                           Foreground="#7B8490"/>
             </Grid>
         </Border>
 
@@ -39,7 +39,7 @@
             <Border Grid.Column="0"
                     BorderBrush="#252A31"
                     BorderThickness="0,0,1,0"
-                    Background="#14171B">
+                    Background="#FFFFFF">
                 <StackPanel Margin="12,16">
                     <Button x:Name="HomeNavButton" Content="홈" Style="{StaticResource NavButtonStyle}" Click="HomeNavButton_Click"/>
                     <Button x:Name="OverlayNavButton" Content="오버레이" Style="{StaticResource NavButtonStyle}" Click="OverlayNavButton_Click"/>
@@ -52,7 +52,7 @@
                 <Grid x:Name="HomePage" Margin="34,30">
                     <StackPanel>
                         <TextBlock Text="상태" FontSize="20" FontWeight="SemiBold"/>
-                        <Border Margin="0,22,0,0" Padding="18" Background="#171A1F" BorderBrush="#2A2F37" BorderThickness="1" CornerRadius="5">
+                        <Border Margin="0,22,0,0" Padding="18" Background="#FFFFFF" BorderBrush="#DCE1E7" BorderThickness="1" CornerRadius="5">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -63,7 +63,7 @@
                                     <TextBlock x:Name="GameStatusText"
                                                Text="게임을 기다리는 중"
                                                Margin="0,5,0,0"
-                                               Foreground="#979DA7"
+                                               Foreground="#66707C"
                                                FontSize="12"/>
                                 </StackPanel>
                                 <Ellipse x:Name="GameStatusDot"
@@ -75,9 +75,9 @@
                             </Grid>
                         </Border>
 
-                        <Border Margin="0,12,0,0" Padding="18" Background="#171A1F" BorderBrush="#2A2F37" BorderThickness="1" CornerRadius="5">
+                        <Border Margin="0,12,0,0" Padding="18" Background="#FFFFFF" BorderBrush="#DCE1E7" BorderThickness="1" CornerRadius="5">
                             <StackPanel>
-                                <TextBlock Text="이번 게임" Foreground="#979DA7" FontSize="12"/>
+                                <TextBlock Text="이번 게임" Foreground="#66707C" FontSize="12"/>
                                 <TextBlock x:Name="CurrentItemText"
                                            Text="아직 감지되지 않음"
                                            Margin="0,5,0,0"
@@ -103,7 +103,7 @@
                     <StackPanel>
                         <TextBlock Text="오버레이" FontSize="20" FontWeight="SemiBold"/>
                         <TextBlock Text="게임 화면에 표시되는 카드의 크기와 표시 방식을 설정합니다."
-                                   Margin="0,7,0,18" Foreground="#979DA7"/>
+                                   Margin="0,7,0,18" Foreground="#66707C"/>
 
                         <CheckBox x:Name="OverlayEnabledCheckBox"
                                   Content="오버레이 표시"
@@ -124,7 +124,7 @@
                                   Checked="OverlaySetting_Changed"
                                   Unchecked="OverlaySetting_Changed"/>
 
-                        <TextBlock Text="테스트 아이템" Margin="0,24,0,8" Foreground="#979DA7"/>
+                        <TextBlock Text="테스트 아이템" Margin="0,24,0,8" Foreground="#66707C"/>
                         <ComboBox x:Name="TestItemComboBox"
                                   Width="220"
                                   HorizontalAlignment="Left"
@@ -142,7 +142,7 @@
                     <StackPanel>
                         <TextBlock Text="설정" FontSize="20" FontWeight="SemiBold"/>
 
-                        <TextBlock Text="일반" Margin="0,22,0,10" Foreground="#979DA7"/>
+                        <TextBlock Text="일반" Margin="0,22,0,10" Foreground="#66707C"/>
                         <CheckBox x:Name="CloseToTrayCheckBox"
                                   Content="창을 닫으면 트레이로 최소화"
                                   IsChecked="True"
@@ -154,21 +154,21 @@
                                   Checked="GeneralSetting_Changed"
                                   Unchecked="GeneralSetting_Changed"/>
 
-                        <TextBlock Text="인식" Margin="0,24,0,10" Foreground="#979DA7"/>
+                        <TextBlock Text="인식" Margin="0,24,0,10" Foreground="#66707C"/>
                         <CheckBox x:Name="AutoRecognitionCheckBox"
                                   Content="자동 인식"
                                   IsChecked="True"
                                   Checked="GeneralSetting_Changed"
                                   Unchecked="GeneralSetting_Changed"/>
 
-                        <TextBlock Text="업데이트" Margin="0,24,0,10" Foreground="#979DA7"/>
+                        <TextBlock Text="업데이트" Margin="0,24,0,10" Foreground="#66707C"/>
                         <CheckBox x:Name="AutoUpdateCheckBox"
                                   Content="자동으로 업데이트 확인"
                                   IsChecked="True"
                                   Checked="GeneralSetting_Changed"
                                   Unchecked="GeneralSetting_Changed"/>
                         <TextBlock Text="자동 업데이트 연결은 릴리스 단계에서 활성화됩니다."
-                                   Margin="0,8,0,0" Foreground="#737A84" FontSize="11"/>
+                                   Margin="0,8,0,0" Foreground="#7B8490" FontSize="11"/>
                     </StackPanel>
                 </Grid>
 
@@ -179,12 +179,12 @@
                                    Width="430"
                                    Margin="0,10,0,0"
                                    TextWrapping="Wrap"
-                                   Foreground="#979DA7"/>
+                                   Foreground="#66707C"/>
 
                         <TextBlock Text="오늘의 루미는 비공식 프로그램입니다."
                                    Margin="0,22,0,0"/>
 
-                        <TextBlock Text="개발자 문의" Margin="0,26,0,5" Foreground="#979DA7"/>
+                        <TextBlock Text="개발자 문의" Margin="0,26,0,5" Foreground="#66707C"/>
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Discord · sinseol" VerticalAlignment="Center"/>
                             <Button Content="복사"
@@ -198,7 +198,7 @@
                                        Foreground="#6F957E"/>
                         </StackPanel>
 
-                        <TextBlock Text="버전" Margin="0,26,0,5" Foreground="#979DA7"/>
+                        <TextBlock Text="버전" Margin="0,26,0,5" Foreground="#66707C"/>
                         <TextBlock x:Name="AboutVersionText" Text="1.0.0"/>
                     </StackPanel>
                 </Grid>
