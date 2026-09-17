@@ -5,6 +5,9 @@ namespace TodaysLUMI.Services;
 
 public sealed class LumiRecognitionMonitor : IDisposable
 {
+    private static readonly TimeSpan SearchingInterval = TimeSpan.FromMilliseconds(600);
+    private static readonly TimeSpan ConfirmedInterval = TimeSpan.FromSeconds(2);
+
     private readonly GameWindowService _gameWindowService = new();
     private readonly ScreenCaptureService _captureService = new();
     private readonly LumiSignatureRecognizer _recognizer = new();
@@ -12,12 +15,13 @@ public sealed class LumiRecognitionMonitor : IDisposable
 
     private readonly DispatcherTimer _timer = new()
     {
-        Interval = TimeSpan.FromMilliseconds(600)
+        Interval = SearchingInterval
     };
 
     private LumiItem? _candidate;
     private int _candidateHits;
     private LumiItem? _lastConfirmed;
+    private int _confirmedLineMissingScans;
 
     public event EventHandler<LumiItem>? ItemDetected;
 
@@ -33,6 +37,9 @@ public sealed class LumiRecognitionMonitor : IDisposable
     {
         _candidate = null;
         _candidateHits = 0;
+        _lastConfirmed = null;
+        _confirmedLineMissingScans = 0;
+        _timer.Interval = TimeSpan.FromMilliseconds(250);
         Scan();
     }
 
@@ -42,7 +49,10 @@ public sealed class LumiRecognitionMonitor : IDisposable
             return;
 
         if (!_gameWindowService.TryGetGameWindow(out var window))
+        {
+            ResetForNextGame();
             return;
+        }
 
         try
         {
@@ -52,31 +62,64 @@ public sealed class LumiRecognitionMonitor : IDisposable
             {
                 _candidate = null;
                 _candidateHits = 0;
+
+                if (_lastConfirmed is not null)
+                {
+                    _confirmedLineMissingScans++;
+
+                    if (_confirmedLineMissingScans >= 3)
+                        ResetForNextGame();
+                }
+                else
+                {
+                    _timer.Interval = SearchingInterval;
+                }
+
+                return;
+            }
+
+            _confirmedLineMissingScans = 0;
+
+            if (_lastConfirmed?.Key == detected.Key)
+            {
+                _timer.Interval = ConfirmedInterval;
                 return;
             }
 
             if (_candidate?.Key == detected.Key)
+            {
                 _candidateHits++;
+            }
             else
             {
                 _candidate = detected;
                 _candidateHits = 1;
             }
 
-            // Require the same result twice to avoid a one-frame false positive.
+            // The same result must be visible in two captures before it is accepted.
             if (_candidateHits < 2)
                 return;
 
-            if (_lastConfirmed?.Key == detected.Key)
-                return;
-
             _lastConfirmed = detected;
+            _candidate = null;
+            _candidateHits = 0;
+            _timer.Interval = ConfirmedInterval;
+
             ItemDetected?.Invoke(this, detected);
         }
         catch
         {
-            // Recognition failures must never affect the game or the main app.
+            // A recognition failure must never affect the game or close the app.
         }
+    }
+
+    private void ResetForNextGame()
+    {
+        _candidate = null;
+        _candidateHits = 0;
+        _lastConfirmed = null;
+        _confirmedLineMissingScans = 0;
+        _timer.Interval = SearchingInterval;
     }
 
     public void Dispose() => _timer.Stop();

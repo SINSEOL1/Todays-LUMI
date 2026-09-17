@@ -6,17 +6,10 @@ namespace TodaysLUMI.Services;
 
 public sealed class LumiSignatureRecognizer
 {
-    private readonly record struct Prototype(LumiItem Item, double Ratio);
-
-    // Purple item width / cyan LUMI-prefix width.
-    // Force Core (0.29) is calibrated from a real in-game sample.
-    private static readonly Prototype[] Prototypes =
-    [
-        new(LumiItem.Meteorite, 0.14),
-        new(LumiItem.Mithril, 0.21),
-        new(LumiItem.ForceCore, 0.29),
-        new(LumiItem.TreeOfLife, 0.41)
-    ];
+    private readonly record struct InkRun(int Start, int End)
+    {
+        public int Width => End - Start + 1;
+    }
 
     public bool TryRecognize(System.Drawing.Bitmap bitmap, out LumiItem? item)
     {
@@ -31,136 +24,289 @@ public sealed class LumiSignatureRecognizer
             var bytes = new byte[stride * bitmap.Height];
             Marshal.Copy(data.Scan0, bytes, 0, bytes.Length);
 
-            var cyanCount = new int[bitmap.Height];
-            var purpleCount = new int[bitmap.Height];
-            var purpleMin = Enumerable.Repeat(int.MaxValue, bitmap.Height).ToArray();
-            var purpleMax = Enumerable.Repeat(-1, bitmap.Height).ToArray();
-
-            // The signature line itself occupies the left side of the chat ROI.
-            // Ignoring the right side prevents combat/UI colors from joining the text span.
             var scanWidth = Math.Max(1, (int)Math.Round(bitmap.Width * 0.60));
+            var cyanRows = new int[bitmap.Height];
+            var purpleRows = new int[bitmap.Height];
 
             for (var y = 0; y < bitmap.Height; y++)
             {
-                var row = data.Stride >= 0 ? y : bitmap.Height - 1 - y;
-                var rowOffset = row * stride;
+                var rowOffset = GetRowOffset(data.Stride, stride, bitmap.Height, y);
 
                 for (var x = 0; x < scanWidth; x++)
                 {
-                    var color = GetColor(bytes, rowOffset, x);
-                    if (IsCyan(color.R, color.G, color.B))
-                    {
-                        cyanCount[y]++;
-                    }
-                    else if (IsPurple(color.R, color.G, color.B))
-                    {
-                        purpleCount[y]++;
-                        purpleMin[y] = Math.Min(purpleMin[y], x);
-                        purpleMax[y] = Math.Max(purpleMax[y], x);
-                    }
+                    var (r, g, b) = GetColor(bytes, rowOffset, x);
+
+                    if (IsCyan(r, g, b))
+                        cyanRows[y]++;
+                    else if (IsPurple(r, g, b))
+                        purpleRows[y]++;
                 }
             }
 
-            var bestY = -1;
-            var bestScore = 0;
-            var radius = Math.Max(2, bitmap.Height / 80);
-
-            for (var y = radius; y < bitmap.Height - radius; y++)
-            {
-                var cyan = 0;
-                var purple = 0;
-
-                for (var yy = y - radius; yy <= y + radius; yy++)
-                {
-                    cyan += cyanCount[yy];
-                    purple += purpleCount[yy];
-                }
-
-                if (cyan < 20 || purple < 6)
-                    continue;
-
-                var score = cyan + (purple * 2);
-                if (score > bestScore)
-                {
-                    bestScore = score;
-                    bestY = y;
-                }
-            }
-
+            var bestY = FindSignatureRow(cyanRows, purpleRows);
             if (bestY < 0)
                 return false;
 
-            var bandHeight = Math.Max(8, bitmap.Height / 12);
+            var bandHeight = Math.Max(10, bitmap.Height / 12);
             var fromY = Math.Max(0, bestY - bandHeight / 2);
             var toY = Math.Min(bitmap.Height - 1, bestY + bandHeight / 2);
 
-            var pMin = int.MaxValue;
-            var pMax = -1;
+            var purpleColumns = new int[scanWidth];
 
             for (var y = fromY; y <= toY; y++)
             {
-                if (purpleCount[y] < 2)
-                    continue;
+                var rowOffset = GetRowOffset(data.Stride, stride, bitmap.Height, y);
 
-                pMin = Math.Min(pMin, purpleMin[y]);
-                pMax = Math.Max(pMax, purpleMax[y]);
-            }
-
-            if (pMax <= pMin)
-                return false;
-
-            // Re-scan the same horizontal band and only accept cyan pixels before
-            // the purple item. This isolates "안내 로봇-LUMI 시그니처 상품 :" from
-            // unrelated cyan UI elements in the same row.
-            var cMin = int.MaxValue;
-            var cMax = -1;
-
-            for (var y = fromY; y <= toY; y++)
-            {
-                var row = data.Stride >= 0 ? y : bitmap.Height - 1 - y;
-                var rowOffset = row * stride;
-                var limit = Math.Min(scanWidth, pMin);
-
-                for (var x = 0; x < limit; x++)
+                for (var x = 0; x < scanWidth; x++)
                 {
-                    var color = GetColor(bytes, rowOffset, x);
-                    if (!IsCyan(color.R, color.G, color.B))
-                        continue;
-
-                    cMin = Math.Min(cMin, x);
-                    cMax = Math.Max(cMax, x);
+                    var (r, g, b) = GetColor(bytes, rowOffset, x);
+                    if (IsPurple(r, g, b))
+                        purpleColumns[x]++;
                 }
             }
 
-            if (cMax <= cMin)
+            var runs = BuildRuns(purpleColumns, bandHeight);
+            if (runs.Count == 0)
                 return false;
 
-            var cyanWidth = cMax - cMin + 1;
-            var purpleWidth = pMax - pMin + 1;
-            var gap = pMin - cMax;
+            // Keep the largest real text cluster and discard tiny purple UI noise.
+            runs = runs
+                .Where(x => x.Width >= Math.Max(4, bandHeight / 5))
+                .ToList();
 
-            if (cyanWidth < bitmap.Width * 0.12)
+            if (runs.Count == 0)
                 return false;
 
-            if (gap < -cyanWidth * 0.08 || gap > cyanWidth * 0.30)
+            runs = CollapseToAtMostTwoGroups(runs);
+
+            var firstX = runs[0].Start;
+            if (!HasLumiPrefix(bytes, data.Stride, stride, bitmap.Height, fromY, toY, firstX, bitmap.Width))
                 return false;
 
-            var ratio = purpleWidth / (double)cyanWidth;
-            var best = Prototypes
-                .Select(x => (Prototype: x, Distance: Math.Abs(x.Ratio - ratio)))
-                .OrderBy(x => x.Distance)
-                .First();
+            var textHeight = MeasurePurpleTextHeight(
+                bytes,
+                data.Stride,
+                stride,
+                bitmap.Height,
+                fromY,
+                toY,
+                runs[0].Start,
+                runs[^1].End);
 
-            if (best.Distance > 0.075)
+            if (textHeight < 5)
                 return false;
 
-            item = best.Prototype.Item;
+            if (runs.Count == 1)
+            {
+                // Both single-word candidates use the same font and color.
+                // Their only meaningful difference is 2 Hangul syllables vs 3.
+                var normalizedWidth = runs[0].Width / (double)textHeight;
+                item = normalizedWidth < 2.35
+                    ? LumiItem.Meteorite
+                    : LumiItem.Mithril;
+
+                return true;
+            }
+
+            // Two-word candidates are distinguishable without per-item screenshots:
+            // "포스 코어" has similarly-sized words (2 + 2 syllables),
+            // while "생명의 나무" has a visibly wider first word (3 + 2 syllables).
+            var wordRatio = runs[0].Width / (double)Math.Max(1, runs[1].Width);
+            item = wordRatio >= 1.25
+                ? LumiItem.TreeOfLife
+                : LumiItem.ForceCore;
+
             return true;
         }
         finally
         {
             bitmap.UnlockBits(data);
         }
+    }
+
+    private static int FindSignatureRow(int[] cyanRows, int[] purpleRows)
+    {
+        var bestY = -1;
+        var bestScore = 0;
+        var radius = Math.Max(2, cyanRows.Length / 80);
+
+        for (var y = radius; y < cyanRows.Length - radius; y++)
+        {
+            var cyan = 0;
+            var purple = 0;
+
+            for (var yy = y - radius; yy <= y + radius; yy++)
+            {
+                cyan += cyanRows[yy];
+                purple += purpleRows[yy];
+            }
+
+            if (cyan < 20 || purple < 6)
+                continue;
+
+            var score = cyan + (purple * 2);
+            if (score <= bestScore)
+                continue;
+
+            bestScore = score;
+            bestY = y;
+        }
+
+        return bestY;
+    }
+
+    private static List<InkRun> BuildRuns(int[] columns, int bandHeight)
+    {
+        var raw = new List<InkRun>();
+        var start = -1;
+
+        for (var x = 0; x < columns.Length; x++)
+        {
+            var active = columns[x] > 0;
+
+            if (active && start < 0)
+            {
+                start = x;
+            }
+            else if (!active && start >= 0)
+            {
+                raw.Add(new InkRun(start, x - 1));
+                start = -1;
+            }
+        }
+
+        if (start >= 0)
+            raw.Add(new InkRun(start, columns.Length - 1));
+
+        if (raw.Count <= 1)
+            return raw;
+
+        var closeGap = Math.Max(2, bandHeight / 8);
+        var merged = new List<InkRun>();
+        var current = raw[0];
+
+        for (var i = 1; i < raw.Count; i++)
+        {
+            var next = raw[i];
+            var gap = next.Start - current.End - 1;
+
+            if (gap <= closeGap)
+            {
+                current = new InkRun(current.Start, next.End);
+            }
+            else
+            {
+                merged.Add(current);
+                current = next;
+            }
+        }
+
+        merged.Add(current);
+        return merged;
+    }
+
+    private static List<InkRun> CollapseToAtMostTwoGroups(List<InkRun> runs)
+    {
+        runs = runs.OrderBy(x => x.Start).ToList();
+
+        while (runs.Count > 2)
+        {
+            var smallestGap = int.MaxValue;
+            var mergeIndex = 0;
+
+            for (var i = 0; i < runs.Count - 1; i++)
+            {
+                var gap = runs[i + 1].Start - runs[i].End - 1;
+                if (gap >= smallestGap)
+                    continue;
+
+                smallestGap = gap;
+                mergeIndex = i;
+            }
+
+            runs[mergeIndex] = new InkRun(runs[mergeIndex].Start, runs[mergeIndex + 1].End);
+            runs.RemoveAt(mergeIndex + 1);
+        }
+
+        return runs;
+    }
+
+    private static bool HasLumiPrefix(
+        byte[] bytes,
+        int signedStride,
+        int stride,
+        int height,
+        int fromY,
+        int toY,
+        int itemStartX,
+        int bitmapWidth)
+    {
+        var minX = int.MaxValue;
+        var maxX = -1;
+        var pixelCount = 0;
+
+        for (var y = fromY; y <= toY; y++)
+        {
+            var rowOffset = GetRowOffset(signedStride, stride, height, y);
+
+            for (var x = 0; x < itemStartX; x++)
+            {
+                var (r, g, b) = GetColor(bytes, rowOffset, x);
+                if (!IsCyan(r, g, b))
+                    continue;
+
+                minX = Math.Min(minX, x);
+                maxX = Math.Max(maxX, x);
+                pixelCount++;
+            }
+        }
+
+        if (maxX <= minX || pixelCount < 35)
+            return false;
+
+        var prefixWidth = maxX - minX + 1;
+        if (prefixWidth < bitmapWidth * 0.10)
+            return false;
+
+        var gap = itemStartX - maxX;
+        return gap >= -4 && gap <= Math.Max(35, prefixWidth / 4);
+    }
+
+    private static int MeasurePurpleTextHeight(
+        byte[] bytes,
+        int signedStride,
+        int stride,
+        int height,
+        int fromY,
+        int toY,
+        int fromX,
+        int toX)
+    {
+        var minY = int.MaxValue;
+        var maxY = -1;
+
+        for (var y = fromY; y <= toY; y++)
+        {
+            var rowOffset = GetRowOffset(signedStride, stride, height, y);
+
+            for (var x = fromX; x <= toX; x++)
+            {
+                var (r, g, b) = GetColor(bytes, rowOffset, x);
+                if (!IsPurple(r, g, b))
+                    continue;
+
+                minY = Math.Min(minY, y);
+                maxY = Math.Max(maxY, y);
+            }
+        }
+
+        return maxY >= minY ? maxY - minY + 1 : 0;
+    }
+
+    private static int GetRowOffset(int signedStride, int stride, int height, int y)
+    {
+        var row = signedStride >= 0 ? y : height - 1 - y;
+        return row * stride;
     }
 
     private static (byte R, byte G, byte B) GetColor(byte[] bytes, int rowOffset, int x)

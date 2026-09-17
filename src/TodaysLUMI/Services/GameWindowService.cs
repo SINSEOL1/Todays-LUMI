@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace TodaysLUMI.Services;
 
@@ -13,6 +14,14 @@ public sealed class GameWindowService
         "EternalReturn-Win64-Shipping"
     ];
 
+    private static readonly string[] WindowTitleHints =
+    [
+        "Eternal Return",
+        "이터널 리턴"
+    ];
+
+    private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
     [StructLayout(LayoutKind.Sequential)]
     private struct RECT { public int Left, Top, Right, Bottom; }
 
@@ -25,6 +34,18 @@ public sealed class GameWindowService
     [DllImport("user32.dll")]
     private static extern bool ClientToScreen(IntPtr hWnd, ref POINT lpPoint);
 
+    [DllImport("user32.dll")]
+    private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindowVisible(IntPtr hWnd);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+
+    [DllImport("user32.dll")]
+    private static extern int GetWindowTextLength(IntPtr hWnd);
+
     public bool TryGetGameWindow(out GameWindowInfo info)
     {
         foreach (var processName in ProcessNames)
@@ -34,33 +55,68 @@ public sealed class GameWindowService
                 try
                 {
                     process.Refresh();
-                    var handle = process.MainWindowHandle;
-                    if (handle == IntPtr.Zero)
-                        continue;
 
-                    if (!GetClientRect(handle, out var rect))
-                        continue;
-
-                    var topLeft = new POINT();
-                    if (!ClientToScreen(handle, ref topLeft))
-                        continue;
-
-                    var width = rect.Right - rect.Left;
-                    var height = rect.Bottom - rect.Top;
-                    if (width < 800 || height < 450)
-                        continue;
-
-                    info = new GameWindowInfo(handle, topLeft.X, topLeft.Y, width, height);
-                    return true;
+                    if (TryBuildInfo(process.MainWindowHandle, out info))
+                        return true;
                 }
                 catch
                 {
-                    // Process may exit while being inspected.
+                    // The game can close while its process is being inspected.
                 }
             }
         }
 
+        GameWindowInfo found = default;
+        var hasFound = false;
+
+        EnumWindows((handle, _) =>
+        {
+            if (!IsWindowVisible(handle))
+                return true;
+
+            var length = GetWindowTextLength(handle);
+            if (length <= 0)
+                return true;
+
+            var title = new StringBuilder(length + 1);
+            GetWindowText(handle, title, title.Capacity);
+
+            if (!WindowTitleHints.Any(hint =>
+                    title.ToString().Contains(hint, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+
+            if (!TryBuildInfo(handle, out found))
+                return true;
+
+            hasFound = true;
+            return false;
+        }, IntPtr.Zero);
+
+        info = found;
+        return hasFound;
+    }
+
+    private static bool TryBuildInfo(IntPtr handle, out GameWindowInfo info)
+    {
         info = default;
-        return false;
+
+        if (handle == IntPtr.Zero || !GetClientRect(handle, out var rect))
+            return false;
+
+        var topLeft = new POINT();
+
+        if (!ClientToScreen(handle, ref topLeft))
+            return false;
+
+        var width = rect.Right - rect.Left;
+        var height = rect.Bottom - rect.Top;
+
+        if (width < 800 || height < 450)
+            return false;
+
+        info = new GameWindowInfo(handle, topLeft.X, topLeft.Y, width, height);
+        return true;
     }
 }

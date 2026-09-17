@@ -27,3 +27,24 @@ jobs:
 
       - name: Build
         run: dotnet build src/TodaysLUMI/TodaysLUMI.csproj --configuration Release --no-restore
+
+      - name: Publish test build
+        if: github.event_name == 'push'
+        shell: pwsh
+        run: |
+          dotnet publish src/TodaysLUMI/TodaysLUMI.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            --output artifacts/test-build
+
+      - name: Upload test build
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: TodaysLUMI-Windows-test
+          path: artifacts/test-build/
+          if-no-files-found: error
+          retention-days: 14
