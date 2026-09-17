@@ -192,6 +192,6 @@ public partial class MainWindow : Window
         _trayIcon.Dispose();
 
         Close();
-        Application.Current.Shutdown();
+        System.Windows.Application.Current.Shutdown();
     }
 }
