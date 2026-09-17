@@ -90,7 +90,7 @@ public partial class MainWindow : Window
     {
         GameStatusText.Text = running ? "실행 중" : "게임을 기다리는 중";
         GameStatusDot.Fill = new SolidColorBrush(
-            (Color)ColorConverter.ConvertFromString(running ? "#5D8D72" : "#5E646D"));
+            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(running ? "#5D8D72" : "#5E646D"));
     }
 
     private void ShowPage(UIElement page)
@@ -150,7 +150,7 @@ public partial class MainWindow : Window
 
     private void CopyDiscordButton_Click(object sender, RoutedEventArgs e)
     {
-        Clipboard.SetText("sinseol");
+        System.Windows.Clipboard.SetText("sinseol");
         CopyStatusText.Text = "복사됨";
     }
 
