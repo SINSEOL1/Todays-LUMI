@@ -13,4 +13,5 @@ public sealed class AppSettings
     public bool AutoCheckUpdates { get; set; } = true;
     public double OverlayOffsetX { get; set; } = 30;
     public double OverlayOffsetY { get; set; } = 180;
+    public string OverlayHotkey { get; set; } = "Ctrl+Shift+L";
 }

@@ -35,6 +35,31 @@ public partial class OverlayWindow : Window
     public void SetItem(LumiItem item)
     {
         ItemNameText.Text = item.Name;
-        AccentBar.Background = (System.Windows.Media.Brush)new BrushConverter().ConvertFromString(item.AccentHex)!;
+        AccentBar.Background =
+            (System.Windows.Media.Brush)new BrushConverter().ConvertFromString(item.AccentHex)!;
+    }
+
+    public void ApplyAppearance(bool compact, double opacity)
+    {
+        Opacity = Math.Clamp(opacity, 0.5, 1.0);
+
+        if (compact)
+        {
+            Width = 168;
+            Height = 44;
+            TitleText.Visibility = Visibility.Collapsed;
+            ContentStack.Margin = new Thickness(12, 8, 10, 7);
+            ItemNameText.Margin = new Thickness(0);
+            ItemNameText.FontSize = 15;
+        }
+        else
+        {
+            Width = 218;
+            Height = 66;
+            TitleText.Visibility = Visibility.Visible;
+            ContentStack.Margin = new Thickness(14, 9, 12, 8);
+            ItemNameText.Margin = new Thickness(0, 2, 0, 0);
+            ItemNameText.FontSize = 17;
+        }
     }
 }
