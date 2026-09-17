@@ -505,5 +505,5 @@ public partial class MainWindow : Window
     }
 
     private static SolidColorBrush CreateBrush(string hex) =>
-        new((Color)ColorConverter.ConvertFromString(hex));
+        new((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex));
 }
