@@ -11,10 +11,13 @@ public partial class MainWindow : Window
 {
     private readonly AppSettingsService _settingsService = new();
     private readonly GameProcessMonitor _gameMonitor = new();
+    private readonly GameWindowService _gameWindowService = new();
     private readonly Forms.NotifyIcon _trayIcon;
+    private readonly LumiRecognitionMonitor _recognitionMonitor;
 
     private AppSettings _settings;
     private OverlayWindow? _overlayWindow;
+    private LumiItem? _currentDetectedItem;
     private bool _allowClose;
     private bool _loadingSettings = true;
 
@@ -39,6 +42,11 @@ public partial class MainWindow : Window
         _gameMonitor.RunningStateChanged += (_, running) =>
             Dispatcher.Invoke(() => UpdateGameState(running));
         _gameMonitor.Start();
+
+        _recognitionMonitor = new LumiRecognitionMonitor(() => _settings.AutoRecognition);
+        _recognitionMonitor.ItemDetected += (_, item) =>
+            Dispatcher.Invoke(() => ApplyDetectedItem(item));
+        _recognitionMonitor.Start();
 
         _trayIcon = new Forms.NotifyIcon
         {
@@ -91,6 +99,49 @@ public partial class MainWindow : Window
         GameStatusText.Text = running ? "실행 중" : "게임을 기다리는 중";
         GameStatusDot.Fill = new SolidColorBrush(
             (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(running ? "#5D8D72" : "#5E646D"));
+
+        if (!running && _settings.ShowOnlyWhenGameActive)
+        {
+            _overlayWindow?.Hide();
+        }
+        else if (running && _currentDetectedItem is not null && _settings.OverlayEnabled)
+        {
+            ShowDetectedOverlay(_currentDetectedItem);
+        }
+    }
+
+    private void ApplyDetectedItem(LumiItem item)
+    {
+        _currentDetectedItem = item;
+        CurrentItemText.Text = item.Name;
+
+        if (!_settings.OverlayEnabled)
+            return;
+
+        if (_settings.ShowOnlyWhenGameActive && !_gameMonitor.IsRunning)
+            return;
+
+        ShowDetectedOverlay(item);
+    }
+
+    private void ShowDetectedOverlay(LumiItem item)
+    {
+        _overlayWindow ??= new OverlayWindow();
+        _overlayWindow.SetItem(item);
+
+        if (!_overlayWindow.IsVisible)
+            _overlayWindow.Show();
+
+        if (_gameWindowService.TryGetGameWindow(out var game))
+        {
+            _overlayWindow.Left = game.X + 30;
+            _overlayWindow.Top = game.Y + Math.Max(48, game.Height * 0.16);
+        }
+        else
+        {
+            _overlayWindow.Left = SystemParameters.WorkArea.Left + 30;
+            _overlayWindow.Top = SystemParameters.WorkArea.Top + 160;
+        }
     }
 
     private void ShowPage(UIElement page)
@@ -108,6 +159,11 @@ public partial class MainWindow : Window
     private void AboutNavButton_Click(object sender, RoutedEventArgs e) => ShowPage(AboutPage);
 
     private void OverlayTestButton_Click(object sender, RoutedEventArgs e) => ShowOverlayTest();
+
+    private void RecognizeNowButton_Click(object sender, RoutedEventArgs e)
+    {
+        _recognitionMonitor.ScanNow();
+    }
 
     private void ShowOverlayTest()
     {
@@ -184,6 +240,7 @@ public partial class MainWindow : Window
     {
         _allowClose = true;
         _gameMonitor.Dispose();
+        _recognitionMonitor.Dispose();
 
         if (_overlayWindow is not null)
             _overlayWindow.Close();

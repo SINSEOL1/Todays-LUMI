@@ -93,8 +93,8 @@
                             <Button Content="다시 인식"
                                     Margin="8,0,0,0"
                                     Style="{StaticResource PrimaryButtonStyle}"
-                                    IsEnabled="False"
-                                    ToolTip="OCR 연결 후 활성화됩니다."/>
+                                    Click="RecognizeNowButton_Click"
+                                    ToolTip="LUMI 판매 안내를 다시 찾습니다."/>
                         </StackPanel>
                     </StackPanel>
                 </Grid>
