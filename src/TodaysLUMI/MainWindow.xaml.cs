@@ -277,7 +277,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ShowPage(UIElement page, Button activeButton)
+    private void ShowPage(UIElement page, System.Windows.Controls.Button activeButton)
     {
         HomePage.Visibility = Visibility.Collapsed;
         OverlayPage.Visibility = Visibility.Collapsed;
@@ -382,7 +382,7 @@ public partial class MainWindow : Window
         Keyboard.Focus(HotkeyCaptureButton);
     }
 
-    private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+    private void MainWindow_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         if (!_capturingHotkey)
             return;
