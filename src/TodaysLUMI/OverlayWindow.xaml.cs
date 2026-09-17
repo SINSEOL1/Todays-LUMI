@@ -35,6 +35,6 @@ public partial class OverlayWindow : Window
     public void SetItem(LumiItem item)
     {
         ItemNameText.Text = item.Name;
-        AccentBar.Background = (Brush)new BrushConverter().ConvertFromString(item.AccentHex)!;
+        AccentBar.Background = (System.Windows.Media.Brush)new BrushConverter().ConvertFromString(item.AccentHex)!;
     }
 }
