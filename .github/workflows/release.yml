@@ -4,6 +4,13 @@ on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "배포 버전 (예: 1.0.0)"
+        required: true
+        default: "1.0.0"
+        type: string
 
 permissions:
   contents: write
@@ -20,14 +27,21 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}"
-
-          if ($tag -notmatch '^v([0-9]+)\.([0-9]+)\.([0-9]+)$') {
-            throw "Release tag must use vA.B.C format. Example: v1.0.0"
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $version = "${{ inputs.version }}".Trim().TrimStart("v")
+            $tag = "v$version"
+          }
+          else {
+            $tag = "${{ github.ref_name }}"
+            $version = $tag.TrimStart("v")
           }
 
-          $version = $tag.Substring(1)
+          if ($version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$') {
+            throw "Version must use A.B.C format. Example: 1.0.0"
+          }
+
           "value=$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -43,7 +57,7 @@ jobs:
             --self-contained true `
             -p:PublishSingleFile=true `
             -p:IncludeNativeLibrariesForSelfExtract=true `
-            -p:Version=${{ steps.version.outputs.value }} `
+            -p:Version=${{ steps.version.outputs.value ${{ `
             -p:AssemblyVersion=${{ steps.version.outputs.value }}.0 `
             -p:FileVersion=${{ steps.version.outputs.value }}.0 `
             --output publish
@@ -73,6 +87,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           name: 오늘의 루미 v${{ steps.version.outputs.value }}
           generate_release_notes: true
           files: |
