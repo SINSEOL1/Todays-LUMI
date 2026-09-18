@@ -17,6 +17,7 @@ public partial class MainWindow : Window
     private readonly GlobalHotkeyService _hotkeyService = new();
     private readonly LobbyStateMonitor _lobbyMonitor = new();
     private readonly MatchTransitionMonitor _matchTransitionMonitor = new();
+    private readonly StartupService _startupService = new();
     private readonly Forms.NotifyIcon _trayIcon;
     private readonly LumiRecognitionMonitor _recognitionMonitor;
 
@@ -29,6 +30,7 @@ public partial class MainWindow : Window
     private bool _loadingSettings = true;
     private bool _overlayHiddenByHotkey;
     private bool _overlaySuppressedByMatchEnd;
+    private bool _overlayPositionEditMode;
     private bool _capturingHotkey;
     private string _hotkeyBeforeCapture = string.Empty;
 
@@ -37,6 +39,7 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         _settings = _settingsService.Load();
+        _startupService.Apply(_settings.StartWithWindows);
 
         var version = Assembly.GetExecutingAssembly().GetName().Version;
         var versionText = version is null
@@ -135,6 +138,9 @@ public partial class MainWindow : Window
         AutoRecognitionCheckBox.IsChecked = _settings.AutoRecognition;
         AutoUpdateCheckBox.IsChecked = _settings.AutoCheckUpdates;
 
+        OverlayScaleSlider.Value = Math.Clamp(_settings.OverlayScale, 0.75, 1.50);
+        OverlayOpacitySlider.Value = Math.Clamp(_settings.OverlayOpacity, 0.50, 1.00);
+        UpdateOverlayAppearanceLabels();
         UpdateShortcutLabels();
     }
 
@@ -150,6 +156,8 @@ public partial class MainWindow : Window
         _settings.StartWithWindows = StartWithWindowsCheckBox.IsChecked == true;
         _settings.AutoRecognition = AutoRecognitionCheckBox.IsChecked == true;
         _settings.AutoCheckUpdates = AutoUpdateCheckBox.IsChecked == true;
+        _settings.OverlayScale = OverlayScaleSlider.Value;
+        _settings.OverlayOpacity = OverlayOpacitySlider.Value;
 
         _settingsService.Save(_settings);
     }
@@ -245,21 +253,16 @@ public partial class MainWindow : Window
     {
         _overlayWindow ??= new OverlayWindow();
         _overlayWindow.SetItem(item);
-        _overlayWindow.ApplyAppearance(_settings.OverlayCompact, _settings.OverlayOpacity);
+        _overlayWindow.ApplyAppearance(
+            _settings.OverlayCompact,
+            _settings.OverlayOpacity,
+            _settings.OverlayScale);
 
         if (!_overlayWindow.IsVisible)
             _overlayWindow.Show();
 
-        if (_gameWindowService.TryGetGameWindow(out var game))
-        {
-            _overlayWindow.Left = game.X + _settings.OverlayOffsetX;
-            _overlayWindow.Top = game.Y + Math.Max(48, game.Height * 0.16);
-        }
-        else
-        {
-            _overlayWindow.Left = SystemParameters.WorkArea.Left + _settings.OverlayOffsetX;
-            _overlayWindow.Top = SystemParameters.WorkArea.Top + _settings.OverlayOffsetY;
-        }
+        if (!_overlayPositionEditMode)
+            ApplySavedOverlayPosition();
     }
 
     private void ToggleOverlayVisibility()
@@ -396,14 +399,15 @@ public partial class MainWindow : Window
         if (TestItemComboBox.SelectedItem is LumiItem item)
             _overlayWindow.SetItem(item);
 
-        _overlayWindow.ApplyAppearance(_settings.OverlayCompact, _settings.OverlayOpacity);
+        _overlayWindow.ApplyAppearance(
+            _settings.OverlayCompact,
+            _settings.OverlayOpacity,
+            _settings.OverlayScale);
 
         if (!_overlayWindow.IsVisible)
             _overlayWindow.Show();
 
-        _overlayWindow.Left = SystemParameters.WorkArea.Right - _overlayWindow.Width - 32;
-        _overlayWindow.Top = SystemParameters.WorkArea.Top + 180;
-
+        ApplySavedOverlayPosition();
         UpdateOverlayRuntimeUi();
     }
 
@@ -425,7 +429,13 @@ public partial class MainWindow : Window
 
         SaveSettingsFromUi();
 
-        _overlayWindow?.ApplyAppearance(_settings.OverlayCompact, _settings.OverlayOpacity);
+        _overlayWindow?.ApplyAppearance(
+            _settings.OverlayCompact,
+            _settings.OverlayOpacity,
+            _settings.OverlayScale);
+
+        if (_overlayWindow?.IsVisible == true && !_overlayPositionEditMode)
+            ApplySavedOverlayPosition();
 
         if (!_settings.OverlayEnabled)
         {
@@ -444,6 +454,203 @@ public partial class MainWindow : Window
     private void GeneralSetting_Changed(object sender, RoutedEventArgs e)
     {
         SaveSettingsFromUi();
+        _startupService.Apply(_settings.StartWithWindows);
+    }
+
+    private void OverlayScaleSlider_ValueChanged(
+        object sender,
+        RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_loadingSettings)
+            return;
+
+        _settings.OverlayScale = OverlayScaleSlider.Value;
+        _settingsService.Save(_settings);
+        UpdateOverlayAppearanceLabels();
+
+        _overlayWindow?.ApplyAppearance(
+            _settings.OverlayCompact,
+            _settings.OverlayOpacity,
+            _settings.OverlayScale);
+
+        if (_overlayWindow?.IsVisible == true && !_overlayPositionEditMode)
+            ApplySavedOverlayPosition();
+    }
+
+    private void OverlayOpacitySlider_ValueChanged(
+        object sender,
+        RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_loadingSettings)
+            return;
+
+        _settings.OverlayOpacity = OverlayOpacitySlider.Value;
+        _settingsService.Save(_settings);
+        UpdateOverlayAppearanceLabels();
+
+        _overlayWindow?.ApplyAppearance(
+            _settings.OverlayCompact,
+            _settings.OverlayOpacity,
+            _settings.OverlayScale);
+    }
+
+    private void UpdateOverlayAppearanceLabels()
+    {
+        if (OverlayScaleValueText is null || OverlayOpacityValueText is null)
+            return;
+
+        OverlayScaleValueText.Text = $"{Math.Round(_settings.OverlayScale * 100):0}%";
+        OverlayOpacityValueText.Text = $"{Math.Round(_settings.OverlayOpacity * 100):0}%";
+    }
+
+    private void OverlayPositionButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_overlayPositionEditMode)
+        {
+            BeginOverlayPositionEdit();
+            return;
+        }
+
+        EndOverlayPositionEdit(save: true);
+    }
+
+    private void ResetOverlayPositionButton_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.OverlayPositionXRatio = 0.02;
+        _settings.OverlayPositionYRatio = 0.16;
+        _settingsService.Save(_settings);
+
+        if (_overlayWindow?.IsVisible == true)
+            ApplySavedOverlayPosition();
+
+        OverlayPositionStatusText.Text = "기본 위치로 되돌렸습니다.";
+    }
+
+    private void BeginOverlayPositionEdit()
+    {
+        if (!_settings.OverlayEnabled)
+            return;
+
+        _overlayPositionEditMode = true;
+        _overlayHiddenByHotkey = false;
+
+        _overlayWindow ??= new OverlayWindow();
+
+        if (_currentDetectedItem is not null)
+            _overlayWindow.SetItem(_currentDetectedItem);
+        else if (TestItemComboBox.SelectedItem is LumiItem previewItem)
+            _overlayWindow.SetItem(previewItem);
+
+        _overlayWindow.ApplyAppearance(
+            _settings.OverlayCompact,
+            _settings.OverlayOpacity,
+            _settings.OverlayScale);
+
+        ApplySavedOverlayPosition();
+
+        if (!_overlayWindow.IsVisible)
+            _overlayWindow.Show();
+
+        _overlayWindow.SetPositionEditMode(true);
+        _overlayWindow.Activate();
+
+        OverlayPositionButton.Content = "위치 저장";
+        OverlayPositionStatusText.Text = "오버레이를 드래그한 뒤 위치 저장을 누르세요.";
+    }
+
+    private void EndOverlayPositionEdit(bool save)
+    {
+        if (!_overlayPositionEditMode || _overlayWindow is null)
+            return;
+
+        if (save)
+            SaveCurrentOverlayPosition();
+
+        _overlayPositionEditMode = false;
+        _overlayWindow.SetPositionEditMode(false);
+
+        OverlayPositionButton.Content = "위치 조정";
+        OverlayPositionStatusText.Text = save
+            ? "게임 화면 기준 위치가 저장되었습니다."
+            : "위치 조정을 취소했습니다.";
+
+        if (_currentDetectedItem is null ||
+            _overlaySuppressedByMatchEnd ||
+            _overlayHiddenByHotkey ||
+            (_settings.ShowOnlyWhenGameActive && !_gameMonitor.IsRunning))
+        {
+            _overlayWindow.Hide();
+        }
+    }
+
+    private void SaveCurrentOverlayPosition()
+    {
+        if (_overlayWindow is null)
+            return;
+
+        double originX;
+        double originY;
+        double areaWidth;
+        double areaHeight;
+
+        if (_gameWindowService.TryGetGameWindow(out var game))
+        {
+            originX = game.X;
+            originY = game.Y;
+            areaWidth = Math.Max(1, game.Width - _overlayWindow.Width);
+            areaHeight = Math.Max(1, game.Height - _overlayWindow.Height);
+        }
+        else
+        {
+            originX = SystemParameters.WorkArea.Left;
+            originY = SystemParameters.WorkArea.Top;
+            areaWidth = Math.Max(1, SystemParameters.WorkArea.Width - _overlayWindow.Width);
+            areaHeight = Math.Max(1, SystemParameters.WorkArea.Height - _overlayWindow.Height);
+        }
+
+        _settings.OverlayPositionXRatio = Math.Clamp(
+            (_overlayWindow.Left - originX) / areaWidth,
+            0.0,
+            1.0);
+
+        _settings.OverlayPositionYRatio = Math.Clamp(
+            (_overlayWindow.Top - originY) / areaHeight,
+            0.0,
+            1.0);
+
+        _settingsService.Save(_settings);
+    }
+
+    private void ApplySavedOverlayPosition()
+    {
+        if (_overlayWindow is null)
+            return;
+
+        double originX;
+        double originY;
+        double areaWidth;
+        double areaHeight;
+
+        if (_gameWindowService.TryGetGameWindow(out var game))
+        {
+            originX = game.X;
+            originY = game.Y;
+            areaWidth = Math.Max(1, game.Width - _overlayWindow.Width);
+            areaHeight = Math.Max(1, game.Height - _overlayWindow.Height);
+        }
+        else
+        {
+            originX = SystemParameters.WorkArea.Left;
+            originY = SystemParameters.WorkArea.Top;
+            areaWidth = Math.Max(1, SystemParameters.WorkArea.Width - _overlayWindow.Width);
+            areaHeight = Math.Max(1, SystemParameters.WorkArea.Height - _overlayWindow.Height);
+        }
+
+        _overlayWindow.Left = originX +
+            Math.Clamp(_settings.OverlayPositionXRatio, 0.0, 1.0) * areaWidth;
+
+        _overlayWindow.Top = originY +
+            Math.Clamp(_settings.OverlayPositionYRatio, 0.0, 1.0) * areaHeight;
     }
 
     private void HotkeyCaptureButton_Click(object sender, RoutedEventArgs e)
@@ -562,6 +769,9 @@ public partial class MainWindow : Window
     private void ExitApplication()
     {
         _allowClose = true;
+
+        if (_overlayPositionEditMode)
+            EndOverlayPositionEdit(save: true);
 
         _gameMonitor.Dispose();
         _lobbyMonitor.Dispose();
