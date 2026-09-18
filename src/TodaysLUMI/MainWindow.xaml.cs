@@ -15,6 +15,7 @@ public partial class MainWindow : Window
     private readonly GameProcessMonitor _gameMonitor = new();
     private readonly GameWindowService _gameWindowService = new();
     private readonly GlobalHotkeyService _hotkeyService = new();
+    private readonly LobbyStateMonitor _lobbyMonitor = new();
     private readonly Forms.NotifyIcon _trayIcon;
     private readonly LumiRecognitionMonitor _recognitionMonitor;
 
@@ -60,6 +61,10 @@ public partial class MainWindow : Window
         _recognitionMonitor.ItemDetected += (_, item) =>
             Dispatcher.Invoke(() => ApplyDetectedItem(item));
         _recognitionMonitor.Start();
+
+        _lobbyMonitor.LobbyEntered += (_, _) =>
+            Dispatcher.Invoke(HandleLobbyEntered);
+        _lobbyMonitor.Start();
 
         _trayIcon = new Forms.NotifyIcon
         {
@@ -162,6 +167,16 @@ public partial class MainWindow : Window
             ShowDetectedOverlay(_currentDetectedItem);
         }
 
+        UpdateOverlayRuntimeUi();
+    }
+
+    private void HandleLobbyEntered()
+    {
+        _currentDetectedItem = null;
+        CurrentItemText.Text = "아직 감지되지 않음";
+        CurrentItemAccentBar.Background = CreateBrush("#D4D9DF");
+        _overlayWindow?.Hide();
+        _recognitionMonitor.ResetForLobby();
         UpdateOverlayRuntimeUi();
     }
 
@@ -502,6 +517,7 @@ public partial class MainWindow : Window
         _allowClose = true;
 
         _gameMonitor.Dispose();
+        _lobbyMonitor.Dispose();
         _recognitionMonitor.Dispose();
         _hotkeyService.Dispose();
 
