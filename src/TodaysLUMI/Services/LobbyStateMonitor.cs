@@ -9,7 +9,7 @@ public sealed class LobbyStateMonitor : IDisposable
 
     private readonly DispatcherTimer _timer = new()
     {
-        Interval = TimeSpan.FromSeconds(1)
+        Interval = TimeSpan.FromMilliseconds(400)
     };
 
     private int _lobbyHits;
