@@ -46,6 +46,11 @@ public sealed class LumiRecognitionMonitor : IDisposable
         Scan();
     }
 
+    public void ResetForLobby()
+    {
+        ResetForNextGame();
+    }
+
     private void Scan()
     {
         if (!_isEnabled())
