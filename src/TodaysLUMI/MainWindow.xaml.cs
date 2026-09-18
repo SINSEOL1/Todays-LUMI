@@ -80,7 +80,7 @@ public partial class MainWindow : Window
 
         menu.Items.Add(_overlayToggleMenuItem);
         menu.Items.Add("다시 인식", null, (_, _) =>
-            Dispatcher.Invoke(() => _recognitionMonitor.ScanNow()));
+            Dispatcher.Invoke(StartManualRescan));
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("종료", null, (_, _) => Dispatcher.Invoke(ExitApplication));
 
@@ -309,7 +309,18 @@ public partial class MainWindow : Window
 
     private void RecognizeNowButton_Click(object sender, RoutedEventArgs e)
     {
+        StartManualRescan();
+    }
+
+    private void StartManualRescan()
+    {
+        _currentDetectedItem = null;
+        CurrentItemText.Text = "다시 인식 중...";
+        CurrentItemAccentBar.Background = CreateBrush("#D4D9DF");
+        _overlayWindow?.Hide();
+
         _recognitionMonitor.ScanNow();
+        UpdateOverlayRuntimeUi();
     }
 
     private void ShowOverlayTest()
