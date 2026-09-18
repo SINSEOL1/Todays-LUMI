@@ -86,7 +86,9 @@ public partial class OverlayWindow : Window
     public void SetPositionEditMode(bool enabled)
     {
         _positionEditMode = enabled;
-        Cursor = enabled ? Cursors.SizeAll : Cursors.Arrow;
+        Cursor = enabled
+            ? System.Windows.Input.Cursors.SizeAll
+            : System.Windows.Input.Cursors.Arrow;
         EditBadge.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
 
         ApplyInteractionStyle();
