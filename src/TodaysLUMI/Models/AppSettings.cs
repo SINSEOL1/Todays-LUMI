@@ -11,7 +11,15 @@ public sealed class AppSettings
     public bool StartWithWindows { get; set; }
     public bool CloseToTray { get; set; } = true;
     public bool AutoCheckUpdates { get; set; } = true;
+
+    // Position is stored relative to the Eternal Return client so it survives
+    // resolution changes and moving the game between monitors.
+    public double OverlayPositionXRatio { get; set; } = 0.02;
+    public double OverlayPositionYRatio { get; set; } = 0.16;
+
+    // Kept for compatibility with early test builds.
     public double OverlayOffsetX { get; set; } = 30;
     public double OverlayOffsetY { get; set; } = 180;
+
     public string OverlayHotkey { get; set; } = "Ctrl+Shift+L";
 }
