@@ -77,10 +77,15 @@ public partial class MainWindow : Window
         _matchTransitionMonitor.MatchHudReturned += (_, _) =>
             Dispatcher.Invoke(HandleMatchHudReturned);
 
+        var executableIcon =
+            !string.IsNullOrWhiteSpace(Environment.ProcessPath)
+                ? System.Drawing.Icon.ExtractAssociatedIcon(Environment.ProcessPath)
+                : null;
+
         _trayIcon = new Forms.NotifyIcon
         {
             Text = "오늘의 루미",
-            Icon = System.Drawing.SystemIcons.Application,
+            Icon = executableIcon ?? System.Drawing.SystemIcons.Application,
             Visible = true
         };
 

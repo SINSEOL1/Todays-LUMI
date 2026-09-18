@@ -21,6 +21,7 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=output
 OutputBaseFilename=TodaysLUMI-Setup-v{#MyAppVersion}
+SetupIconFile=..\src\TodaysLUMI\Assets\app-icon.ico
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
