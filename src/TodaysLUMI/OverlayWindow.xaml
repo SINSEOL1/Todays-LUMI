@@ -9,36 +9,58 @@
         ShowInTaskbar="False"
         Topmost="True"
         ResizeMode="NoResize">
-    <Border x:Name="MainBorder"
-            Background="#EA15171B"
-            BorderBrush="#352A2F37"
-            BorderThickness="1"
-            CornerRadius="5">
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="4"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
+    <Viewbox Stretch="Fill">
+        <Grid x:Name="RootLayout"
+              Width="218"
+              Height="66">
+            <Border x:Name="MainBorder"
+                    Background="#EA15171B"
+                    BorderBrush="#352A2F37"
+                    BorderThickness="1"
+                    CornerRadius="5"
+                    MouseLeftButtonDown="MainBorder_MouseLeftButtonDown">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="4"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-            <Border x:Name="AccentBar"
-                    Grid.Column="0"
-                    Background="#405A86"
-                    CornerRadius="5,0,0,5"/>
+                    <Border x:Name="AccentBar"
+                            Grid.Column="0"
+                            Background="#405A86"
+                            CornerRadius="5,0,0,5"/>
 
-            <StackPanel x:Name="ContentStack"
-                        Grid.Column="1"
-                        Margin="14,9,12,8">
-                <TextBlock x:Name="TitleText"
-                           Text="오늘의 루미"
-                           FontSize="11"
-                           Foreground="#959CA6"/>
-                <TextBlock x:Name="ItemNameText"
-                           Text="운석"
-                           Margin="0,2,0,0"
-                           FontSize="17"
+                    <StackPanel x:Name="ContentStack"
+                                Grid.Column="1"
+                                Margin="14,9,12,8">
+                        <TextBlock x:Name="TitleText"
+                                   Text="오늘의 루미"
+                                   FontSize="11"
+                                   Foreground="#959CA6"/>
+                        <TextBlock x:Name="ItemNameText"
+                                   Text="운석"
+                                   Margin="0,2,0,0"
+                                   FontSize="17"
+                                   FontWeight="SemiBold"
+                                   Foreground="#F3F5F7"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Border x:Name="EditBadge"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Margin="0,4,4,0"
+                    Padding="6,2"
+                    Background="#EAF0F7"
+                    CornerRadius="4"
+                    Visibility="Collapsed"
+                    IsHitTestVisible="False">
+                <TextBlock Text="이동"
+                           FontSize="8"
                            FontWeight="SemiBold"
-                           Foreground="#F3F5F7"/>
-            </StackPanel>
+                           Foreground="#2F4D72"/>
+            </Border>
         </Grid>
-    </Border>
+    </Viewbox>
 </Window>
