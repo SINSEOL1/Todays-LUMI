@@ -6,11 +6,6 @@ namespace TodaysLUMI.Services;
 
 public sealed class LumiSignatureRecognizer
 {
-    private readonly record struct InkRun(int Start, int End)
-    {
-        public int Width => End - Start + 1;
-    }
-
     public bool TryRecognize(System.Drawing.Bitmap bitmap, out LumiItem? item)
     {
         item = null;
@@ -24,6 +19,8 @@ public sealed class LumiSignatureRecognizer
             var bytes = new byte[stride * bitmap.Height];
             Marshal.Copy(data.Scan0, bytes, 0, bytes.Length);
 
+            // The LUMI system line is always in the left portion of the chat area.
+            // Keeping the scan narrow prevents unrelated HUD colors from joining it.
             var scanWidth = Math.Max(1, (int)Math.Round(bitmap.Width * 0.60));
             var cyanRows = new int[bitmap.Height];
             var purpleRows = new int[bitmap.Height];
@@ -51,70 +48,54 @@ public sealed class LumiSignatureRecognizer
             var fromY = Math.Max(0, bestY - bandHeight / 2);
             var toY = Math.Min(bitmap.Height - 1, bestY + bandHeight / 2);
 
-            var purpleColumns = new int[scanWidth];
-
-            for (var y = fromY; y <= toY; y++)
+            if (!TryFindPrefixEnd(
+                    bytes,
+                    data.Stride,
+                    stride,
+                    bitmap.Height,
+                    bitmap.Width,
+                    fromY,
+                    toY,
+                    out var prefixEndX))
             {
-                var rowOffset = GetRowOffset(data.Stride, stride, bitmap.Height, y);
-
-                for (var x = 0; x < scanWidth; x++)
-                {
-                    var (r, g, b) = GetColor(bytes, rowOffset, x);
-                    if (IsPurple(r, g, b))
-                        purpleColumns[x]++;
-                }
+                return false;
             }
 
-            var runs = BuildRuns(purpleColumns, bandHeight);
-            if (runs.Count == 0)
-                return false;
-
-            // Keep the largest real text cluster and discard tiny purple UI noise.
-            runs = runs
-                .Where(x => x.Width >= Math.Max(4, bandHeight / 5))
-                .ToList();
-
-            if (runs.Count == 0)
-                return false;
-
-            runs = CollapseToAtMostTwoGroups(runs);
-
-            var firstX = runs[0].Start;
-            if (!HasLumiPrefix(bytes, data.Stride, stride, bitmap.Height, fromY, toY, firstX, bitmap.Width))
-                return false;
-
-            var textHeight = MeasurePurpleTextHeight(
-                bytes,
-                data.Stride,
-                stride,
-                bitmap.Height,
-                fromY,
-                toY,
-                runs[0].Start,
-                runs[^1].End);
-
-            if (textHeight < 5)
-                return false;
-
-            if (runs.Count == 1)
+            if (!TryMeasureItemText(
+                    bytes,
+                    data.Stride,
+                    stride,
+                    bitmap.Height,
+                    bitmap.Width,
+                    fromY,
+                    toY,
+                    prefixEndX,
+                    out var itemSpan,
+                    out var textHeight))
             {
-                // Both single-word candidates use the same font and color.
-                // Their only meaningful difference is 2 Hangul syllables vs 3.
-                var normalizedWidth = runs[0].Width / (double)textHeight;
-                item = normalizedWidth < 2.35
-                    ? LumiItem.Meteorite
-                    : LumiItem.Mithril;
-
-                return true;
+                return false;
             }
 
-            // Two-word candidates are distinguishable without per-item screenshots:
-            // "포스 코어" has similarly-sized words (2 + 2 syllables),
-            // while "생명의 나무" has a visibly wider first word (3 + 2 syllables).
-            var wordRatio = runs[0].Width / (double)Math.Max(1, runs[1].Width);
-            item = wordRatio >= 1.25
-                ? LumiItem.TreeOfLife
-                : LumiItem.ForceCore;
+            // This ratio is resolution-independent because both dimensions scale
+            // with the game's UI size. A real "포스 코어" sample measures ~4.06.
+            //
+            // Approximate glyph counts:
+            // 운석       -> 2 Hangul syllables
+            // 미스릴     -> 3 Hangul syllables
+            // 포스 코어  -> 4 syllables + one word space
+            // 생명의 나무 -> 5 syllables + one word space
+            var normalizedWidth = itemSpan / (double)textHeight;
+
+            if (normalizedWidth < 1.25 || normalizedWidth > 5.80)
+                return false;
+
+            item = normalizedWidth switch
+            {
+                < 2.25 => LumiItem.Meteorite,
+                < 3.38 => LumiItem.Mithril,
+                < 4.50 => LumiItem.ForceCore,
+                _ => LumiItem.TreeOfLife
+            };
 
             return true;
         }
@@ -145,6 +126,7 @@ public sealed class LumiSignatureRecognizer
                 continue;
 
             var score = cyan + (purple * 2);
+
             if (score <= bestScore)
                 continue;
 
@@ -155,103 +137,34 @@ public sealed class LumiSignatureRecognizer
         return bestY;
     }
 
-    private static List<InkRun> BuildRuns(int[] columns, int bandHeight)
-    {
-        var raw = new List<InkRun>();
-        var start = -1;
-
-        for (var x = 0; x < columns.Length; x++)
-        {
-            var active = columns[x] > 0;
-
-            if (active && start < 0)
-            {
-                start = x;
-            }
-            else if (!active && start >= 0)
-            {
-                raw.Add(new InkRun(start, x - 1));
-                start = -1;
-            }
-        }
-
-        if (start >= 0)
-            raw.Add(new InkRun(start, columns.Length - 1));
-
-        if (raw.Count <= 1)
-            return raw;
-
-        var closeGap = Math.Max(2, bandHeight / 8);
-        var merged = new List<InkRun>();
-        var current = raw[0];
-
-        for (var i = 1; i < raw.Count; i++)
-        {
-            var next = raw[i];
-            var gap = next.Start - current.End - 1;
-
-            if (gap <= closeGap)
-            {
-                current = new InkRun(current.Start, next.End);
-            }
-            else
-            {
-                merged.Add(current);
-                current = next;
-            }
-        }
-
-        merged.Add(current);
-        return merged;
-    }
-
-    private static List<InkRun> CollapseToAtMostTwoGroups(List<InkRun> runs)
-    {
-        runs = runs.OrderBy(x => x.Start).ToList();
-
-        while (runs.Count > 2)
-        {
-            var smallestGap = int.MaxValue;
-            var mergeIndex = 0;
-
-            for (var i = 0; i < runs.Count - 1; i++)
-            {
-                var gap = runs[i + 1].Start - runs[i].End - 1;
-                if (gap >= smallestGap)
-                    continue;
-
-                smallestGap = gap;
-                mergeIndex = i;
-            }
-
-            runs[mergeIndex] = new InkRun(runs[mergeIndex].Start, runs[mergeIndex + 1].End);
-            runs.RemoveAt(mergeIndex + 1);
-        }
-
-        return runs;
-    }
-
-    private static bool HasLumiPrefix(
+    private static bool TryFindPrefixEnd(
         byte[] bytes,
         int signedStride,
         int stride,
         int height,
+        int bitmapWidth,
         int fromY,
         int toY,
-        int itemStartX,
-        int bitmapWidth)
+        out int prefixEndX)
     {
+        prefixEndX = -1;
+
         var minX = int.MaxValue;
         var maxX = -1;
         var pixelCount = 0;
+
+        // The fixed "안내 로봇-LUMI 시그니처 상품 :" prefix sits in roughly
+        // the first third of the captured chat region.
+        var limitX = Math.Min(bitmapWidth - 1, (int)Math.Round(bitmapWidth * 0.36));
 
         for (var y = fromY; y <= toY; y++)
         {
             var rowOffset = GetRowOffset(signedStride, stride, height, y);
 
-            for (var x = 0; x < itemStartX; x++)
+            for (var x = 0; x <= limitX; x++)
             {
                 var (r, g, b) = GetColor(bytes, rowOffset, x);
+
                 if (!IsCyan(r, g, b))
                     continue;
 
@@ -261,46 +174,81 @@ public sealed class LumiSignatureRecognizer
             }
         }
 
-        if (maxX <= minX || pixelCount < 35)
+        if (maxX <= minX || pixelCount < 100)
             return false;
 
         var prefixWidth = maxX - minX + 1;
-        if (prefixWidth < bitmapWidth * 0.10)
+        var normalizedPrefixWidth = prefixWidth / (double)bitmapWidth;
+
+        // Calibrated from the real in-game chat screenshot while still leaving
+        // room for UI scaling differences.
+        if (minX > bitmapWidth * 0.08)
             return false;
 
-        var gap = itemStartX - maxX;
-        return gap >= -4 && gap <= Math.Max(35, prefixWidth / 4);
+        if (normalizedPrefixWidth < 0.20 || normalizedPrefixWidth > 0.35)
+            return false;
+
+        prefixEndX = maxX;
+        return true;
     }
 
-    private static int MeasurePurpleTextHeight(
+    private static bool TryMeasureItemText(
         byte[] bytes,
         int signedStride,
         int stride,
         int height,
+        int bitmapWidth,
         int fromY,
         int toY,
-        int fromX,
-        int toX)
+        int prefixEndX,
+        out int itemSpan,
+        out int textHeight)
     {
+        itemSpan = 0;
+        textHeight = 0;
+
+        var minX = int.MaxValue;
+        var maxX = -1;
         var minY = int.MaxValue;
         var maxY = -1;
+        var pixelCount = 0;
+
+        var startX = Math.Max(0, prefixEndX - 2);
+        var endX = Math.Min(
+            bitmapWidth - 1,
+            prefixEndX + Math.Max(60, (int)Math.Round(bitmapWidth * 0.18)));
 
         for (var y = fromY; y <= toY; y++)
         {
             var rowOffset = GetRowOffset(signedStride, stride, height, y);
 
-            for (var x = fromX; x <= toX; x++)
+            for (var x = startX; x <= endX; x++)
             {
                 var (r, g, b) = GetColor(bytes, rowOffset, x);
+
                 if (!IsPurple(r, g, b))
                     continue;
 
+                minX = Math.Min(minX, x);
+                maxX = Math.Max(maxX, x);
                 minY = Math.Min(minY, y);
                 maxY = Math.Max(maxY, y);
+                pixelCount++;
             }
         }
 
-        return maxY >= minY ? maxY - minY + 1 : 0;
+        if (maxX <= minX || maxY <= minY || pixelCount < 12)
+            return false;
+
+        // The item must begin directly after the fixed cyan prefix.
+        var gap = minX - prefixEndX;
+        if (gap < -4 || gap > Math.Max(14, bitmapWidth / 45))
+            return false;
+
+        itemSpan = maxX - minX + 1;
+        textHeight = maxY - minY + 1;
+
+        return textHeight >= 5;
     }
 
     private static int GetRowOffset(int signedStride, int stride, int height, int y)
@@ -324,7 +272,7 @@ public sealed class LumiSignatureRecognizer
     private static bool IsPurple(byte r, byte g, byte b)
     {
         RgbToHsv(r, g, b, out var h, out var s, out var v);
-        return v >= 0.28 && s >= 0.28 && h is >= 250 and <= 315;
+        return v >= 0.25 && s >= 0.20 && h is >= 245 and <= 320;
     }
 
     private static void RgbToHsv(
