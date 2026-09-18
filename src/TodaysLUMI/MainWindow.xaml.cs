@@ -16,6 +16,7 @@ public partial class MainWindow : Window
     private readonly GameWindowService _gameWindowService = new();
     private readonly GlobalHotkeyService _hotkeyService = new();
     private readonly LobbyStateMonitor _lobbyMonitor = new();
+    private readonly MatchTransitionMonitor _matchTransitionMonitor = new();
     private readonly Forms.NotifyIcon _trayIcon;
     private readonly LumiRecognitionMonitor _recognitionMonitor;
 
@@ -27,6 +28,7 @@ public partial class MainWindow : Window
     private bool _allowClose;
     private bool _loadingSettings = true;
     private bool _overlayHiddenByHotkey;
+    private bool _overlaySuppressedByMatchEnd;
     private bool _capturingHotkey;
     private string _hotkeyBeforeCapture = string.Empty;
 
@@ -65,6 +67,12 @@ public partial class MainWindow : Window
         _lobbyMonitor.LobbyEntered += (_, _) =>
             Dispatcher.Invoke(HandleLobbyEntered);
         _lobbyMonitor.Start();
+
+        _matchTransitionMonitor.MatchEnding += (_, _) =>
+            Dispatcher.Invoke(HandleMatchEnding);
+        _matchTransitionMonitor.MatchHudReturned += (_, _) =>
+            Dispatcher.Invoke(HandleMatchHudReturned);
+        _matchTransitionMonitor.Start();
 
         _trayIcon = new Forms.NotifyIcon
         {
@@ -170,8 +178,38 @@ public partial class MainWindow : Window
         UpdateOverlayRuntimeUi();
     }
 
+    private void HandleMatchEnding()
+    {
+        if (_currentDetectedItem is null)
+            return;
+
+        _overlaySuppressedByMatchEnd = true;
+        _overlayWindow?.Hide();
+        UpdateOverlayRuntimeUi();
+    }
+
+    private void HandleMatchHudReturned()
+    {
+        if (!_overlaySuppressedByMatchEnd)
+            return;
+
+        _overlaySuppressedByMatchEnd = false;
+
+        if (_currentDetectedItem is not null &&
+            _settings.OverlayEnabled &&
+            !_overlayHiddenByHotkey &&
+            (!_settings.ShowOnlyWhenGameActive || _gameMonitor.IsRunning))
+        {
+            ShowDetectedOverlay(_currentDetectedItem);
+        }
+
+        UpdateOverlayRuntimeUi();
+    }
+
     private void HandleLobbyEntered()
     {
+        _overlaySuppressedByMatchEnd = false;
+        _matchTransitionMonitor.Reset();
         _currentDetectedItem = null;
         CurrentItemText.Text = "아직 감지되지 않음";
         CurrentItemAccentBar.Background = CreateBrush("#D4D9DF");
@@ -182,11 +220,12 @@ public partial class MainWindow : Window
 
     private void ApplyDetectedItem(LumiItem item)
     {
+        _overlaySuppressedByMatchEnd = false;
         _currentDetectedItem = item;
         CurrentItemText.Text = item.Name;
         CurrentItemAccentBar.Background = CreateBrush(item.AccentHex);
 
-        if (!_settings.OverlayEnabled || _overlayHiddenByHotkey)
+        if (!_settings.OverlayEnabled || _overlayHiddenByHotkey || _overlaySuppressedByMatchEnd)
         {
             UpdateOverlayRuntimeUi();
             return;
@@ -238,6 +277,7 @@ public partial class MainWindow : Window
             _overlayWindow?.Hide();
         }
         else if (_currentDetectedItem is not null &&
+                 !_overlaySuppressedByMatchEnd &&
                  (!_settings.ShowOnlyWhenGameActive || _gameMonitor.IsRunning))
         {
             ShowDetectedOverlay(_currentDetectedItem);
@@ -260,6 +300,11 @@ public partial class MainWindow : Window
         {
             text = "숨김";
             color = "#A34E4E";
+        }
+        else if (_overlaySuppressedByMatchEnd)
+        {
+            text = "경기 종료";
+            color = "#7A848F";
         }
         else if (_settings.ShowOnlyWhenGameActive && !_gameMonitor.IsRunning)
         {
@@ -329,6 +374,8 @@ public partial class MainWindow : Window
 
     private void StartManualRescan()
     {
+        _overlaySuppressedByMatchEnd = false;
+        _matchTransitionMonitor.Reset();
         _currentDetectedItem = null;
         CurrentItemText.Text = "다시 인식 중...";
         CurrentItemAccentBar.Background = CreateBrush("#D4D9DF");
@@ -518,6 +565,7 @@ public partial class MainWindow : Window
 
         _gameMonitor.Dispose();
         _lobbyMonitor.Dispose();
+        _matchTransitionMonitor.Dispose();
         _recognitionMonitor.Dispose();
         _hotkeyService.Dispose();
 
