@@ -218,114 +218,214 @@
                 <Grid x:Name="OverlayPage"
                       Visibility="Collapsed"
                       Margin="30,26">
-                    <StackPanel>
-                        <TextBlock Text="오버레이" Style="{StaticResource PageTitleStyle}"/>
-                        <TextBlock Text="게임 화면에 표시되는 정보와 단축키를 설정합니다."
-                                   Style="{StaticResource PageSubtitleStyle}"/>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="0,0,4,18">
+                            <TextBlock Text="오버레이" Style="{StaticResource PageTitleStyle}"/>
+                            <TextBlock Text="게임 화면에 표시되는 정보와 단축키를 설정합니다."
+                                       Style="{StaticResource PageSubtitleStyle}"/>
 
-                        <Border Margin="0,22,0,0" Style="{StaticResource CardStyle}">
-                            <StackPanel>
+                            <Grid Margin="0,22,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1*"/>
+                                    <ColumnDefinition Width="14"/>
+                                    <ColumnDefinition Width="1*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0" Style="{StaticResource CardStyle}">
+                                    <StackPanel>
+                                        <Grid>
+                                            <TextBlock Text="표시 설정" Style="{StaticResource SectionTitleStyle}"/>
+                                            <TextBlock x:Name="OverlayPageRuntimeStatusText"
+                                                       Text="표시 대기"
+                                                       HorizontalAlignment="Right"
+                                                       FontSize="11"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{StaticResource AccentBrush}"/>
+                                        </Grid>
+
+                                        <CheckBox x:Name="OverlayEnabledCheckBox"
+                                                  Content="오버레이 사용"
+                                                  Margin="0,17,0,0"
+                                                  IsChecked="True"
+                                                  Style="{StaticResource SwitchStyle}"
+                                                  Checked="OverlaySetting_Changed"
+                                                  Unchecked="OverlaySetting_Changed"/>
+
+                                        <Border Height="1" Margin="0,13" Background="#EEF0F3"/>
+
+                                        <CheckBox x:Name="CompactOverlayCheckBox"
+                                                  Content="컴팩트하게 표시"
+                                                  Style="{StaticResource SwitchStyle}"
+                                                  Checked="OverlaySetting_Changed"
+                                                  Unchecked="OverlaySetting_Changed"/>
+
+                                        <Border Height="1" Margin="0,13" Background="#EEF0F3"/>
+
+                                        <CheckBox x:Name="GameActiveOnlyCheckBox"
+                                                  Content="게임이 실행 중일 때만 표시"
+                                                  IsChecked="True"
+                                                  Style="{StaticResource SwitchStyle}"
+                                                  Checked="OverlaySetting_Changed"
+                                                  Unchecked="OverlaySetting_Changed"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Column="2" Style="{StaticResource CardStyle}">
+                                    <StackPanel>
+                                        <TextBlock Text="크기와 투명도"
+                                                   Style="{StaticResource SectionTitleStyle}"/>
+
+                                        <Grid Margin="0,15,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="44"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="크기"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            <Slider x:Name="OverlayScaleSlider"
+                                                    Grid.Column="1"
+                                                    Margin="12,0"
+                                                    Minimum="0.75"
+                                                    Maximum="1.50"
+                                                    TickFrequency="0.05"
+                                                    IsSnapToTickEnabled="True"
+                                                    ValueChanged="OverlayScaleSlider_ValueChanged"/>
+                                            <TextBlock x:Name="OverlayScaleValueText"
+                                                       Grid.Column="2"
+                                                       HorizontalAlignment="Right"
+                                                       VerticalAlignment="Center"
+                                                       FontWeight="SemiBold"
+                                                       Text="100%"/>
+                                        </Grid>
+
+                                        <Grid Margin="0,15,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="44"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="투명도"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            <Slider x:Name="OverlayOpacitySlider"
+                                                    Grid.Column="1"
+                                                    Margin="12,0"
+                                                    Minimum="0.50"
+                                                    Maximum="1.00"
+                                                    TickFrequency="0.05"
+                                                    IsSnapToTickEnabled="True"
+                                                    ValueChanged="OverlayOpacitySlider_ValueChanged"/>
+                                            <TextBlock x:Name="OverlayOpacityValueText"
+                                                       Grid.Column="2"
+                                                       HorizontalAlignment="Right"
+                                                       VerticalAlignment="Center"
+                                                       FontWeight="SemiBold"
+                                                       Text="92%"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <Border Margin="0,14,0,0" Style="{StaticResource CardStyle}">
                                 <Grid>
-                                    <TextBlock Text="표시 설정" Style="{StaticResource SectionTitleStyle}"/>
-                                    <TextBlock x:Name="OverlayPageRuntimeStatusText"
-                                               Text="표시 대기"
-                                               HorizontalAlignment="Right"
-                                               FontSize="11"
-                                               FontWeight="SemiBold"
-                                               Foreground="{StaticResource AccentBrush}"/>
-                                </Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
 
-                                <CheckBox x:Name="OverlayEnabledCheckBox"
-                                          Content="오버레이 사용"
-                                          Margin="0,17,0,0"
-                                          IsChecked="True"
-                                          Style="{StaticResource SwitchStyle}"
-                                          Checked="OverlaySetting_Changed"
-                                          Unchecked="OverlaySetting_Changed"/>
-
-                                <Border Height="1" Margin="0,13" Background="#EEF0F3"/>
-
-                                <CheckBox x:Name="CompactOverlayCheckBox"
-                                          Content="컴팩트하게 표시"
-                                          Style="{StaticResource SwitchStyle}"
-                                          Checked="OverlaySetting_Changed"
-                                          Unchecked="OverlaySetting_Changed"/>
-
-                                <Border Height="1" Margin="0,13" Background="#EEF0F3"/>
-
-                                <CheckBox x:Name="GameActiveOnlyCheckBox"
-                                          Content="게임이 실행 중일 때만 표시"
-                                          IsChecked="True"
-                                          Style="{StaticResource SwitchStyle}"
-                                          Checked="OverlaySetting_Changed"
-                                          Unchecked="OverlaySetting_Changed"/>
-                            </StackPanel>
-                        </Border>
-
-                        <Grid Margin="0,14,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="1.25*"/>
-                                <ColumnDefinition Width="14"/>
-                                <ColumnDefinition Width="1*"/>
-                            </Grid.ColumnDefinitions>
-
-                            <Border Grid.Column="0" Style="{StaticResource CardStyle}">
-                                <StackPanel>
-                                    <TextBlock Text="표시/숨김 단축키"
-                                               Style="{StaticResource SectionTitleStyle}"/>
-                                    <TextBlock Text="게임 중에도 이 단축키로 오버레이를 바로 숨기거나 다시 표시할 수 있습니다."
-                                               Margin="0,6,0,0"
-                                               TextWrapping="Wrap"
-                                               FontSize="11"
-                                               Foreground="{StaticResource TextSecondaryBrush}"/>
-
-                                    <StackPanel Orientation="Horizontal" Margin="0,15,0,0">
-                                        <Border Padding="11,7"
-                                                Background="#F2F4F7"
-                                                BorderBrush="#DFE3E8"
-                                                BorderThickness="1"
-                                                CornerRadius="6">
-                                            <TextBlock x:Name="HotkeyDisplayText"
-                                                       Text="Ctrl + Shift + L"
-                                                       FontSize="12"
-                                                       FontWeight="SemiBold"/>
-                                        </Border>
-                                        <Button x:Name="HotkeyCaptureButton"
-                                                Content="변경"
-                                                Margin="8,0,0,0"
-                                                Style="{StaticResource SecondaryButtonStyle}"
-                                                Click="HotkeyCaptureButton_Click"/>
+                                    <StackPanel>
+                                        <TextBlock Text="오버레이 위치"
+                                                   Style="{StaticResource SectionTitleStyle}"/>
+                                        <TextBlock x:Name="OverlayPositionStatusText"
+                                                   Text="게임 화면 기준으로 위치가 저장됩니다."
+                                                   Margin="0,6,0,0"
+                                                   FontSize="11"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"/>
                                     </StackPanel>
 
-                                    <TextBlock x:Name="HotkeyStatusText"
-                                               Margin="0,7,0,0"
-                                               FontSize="10"
-                                               Foreground="{StaticResource TextSecondaryBrush}"/>
-                                </StackPanel>
+                                    <StackPanel Grid.Column="1"
+                                                Orientation="Horizontal"
+                                                VerticalAlignment="Center">
+                                        <Button Content="기본 위치"
+                                                Style="{StaticResource SecondaryButtonStyle}"
+                                                Click="ResetOverlayPositionButton_Click"/>
+                                        <Button x:Name="OverlayPositionButton"
+                                                Content="위치 조정"
+                                                Margin="8,0,0,0"
+                                                Style="{StaticResource AccentButtonStyle}"
+                                                Click="OverlayPositionButton_Click"/>
+                                    </StackPanel>
+                                </Grid>
                             </Border>
 
-                            <Border Grid.Column="2" Style="{StaticResource CardStyle}">
-                                <StackPanel>
-                                    <TextBlock Text="미리보기"
-                                               Style="{StaticResource SectionTitleStyle}"/>
-                                    <TextBlock Text="표시할 아이템을 선택해 오버레이를 확인합니다."
-                                               Margin="0,6,0,0"
-                                               TextWrapping="Wrap"
-                                               FontSize="11"
-                                               Foreground="{StaticResource TextSecondaryBrush}"/>
-                                    <ComboBox x:Name="TestItemComboBox"
-                                              Margin="0,14,0,0"
-                                              Height="30"
-                                              SelectionChanged="TestItemComboBox_SelectionChanged"/>
-                                    <Button Content="테스트"
-                                            Margin="0,10,0,0"
-                                            HorizontalAlignment="Left"
-                                            Style="{StaticResource AccentButtonStyle}"
-                                            Click="OverlayTestButton_Click"/>
-                                </StackPanel>
-                            </Border>
-                        </Grid>
-                    </StackPanel>
+                            <Grid Margin="0,14,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1.25*"/>
+                                    <ColumnDefinition Width="14"/>
+                                    <ColumnDefinition Width="1*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0" Style="{StaticResource CardStyle}">
+                                    <StackPanel>
+                                        <TextBlock Text="표시/숨김 단축키"
+                                                   Style="{StaticResource SectionTitleStyle}"/>
+                                        <TextBlock Text="게임 중에도 이 단축키로 오버레이를 바로 숨기거나 다시 표시할 수 있습니다."
+                                                   Margin="0,6,0,0"
+                                                   TextWrapping="Wrap"
+                                                   FontSize="11"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"/>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,15,0,0">
+                                            <Border Padding="11,7"
+                                                    Background="#F2F4F7"
+                                                    BorderBrush="#DFE3E8"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6">
+                                                <TextBlock x:Name="HotkeyDisplayText"
+                                                           Text="Ctrl + Shift + L"
+                                                           FontSize="12"
+                                                           FontWeight="SemiBold"/>
+                                            </Border>
+                                            <Button x:Name="HotkeyCaptureButton"
+                                                    Content="변경"
+                                                    Margin="8,0,0,0"
+                                                    Style="{StaticResource SecondaryButtonStyle}"
+                                                    Click="HotkeyCaptureButton_Click"/>
+                                        </StackPanel>
+
+                                        <TextBlock x:Name="HotkeyStatusText"
+                                                   Margin="0,7,0,0"
+                                                   FontSize="10"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Column="2" Style="{StaticResource CardStyle}">
+                                    <StackPanel>
+                                        <TextBlock Text="미리보기"
+                                                   Style="{StaticResource SectionTitleStyle}"/>
+                                        <TextBlock Text="표시할 아이템을 선택해 오버레이를 확인합니다."
+                                                   Margin="0,6,0,0"
+                                                   TextWrapping="Wrap"
+                                                   FontSize="11"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"/>
+                                        <ComboBox x:Name="TestItemComboBox"
+                                                  Margin="0,14,0,0"
+                                                  Height="30"
+                                                  SelectionChanged="TestItemComboBox_SelectionChanged"/>
+                                        <Button Content="테스트"
+                                                Margin="0,10,0,0"
+                                                HorizontalAlignment="Left"
+                                                Style="{StaticResource AccentButtonStyle}"
+                                                Click="OverlayTestButton_Click"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+                    </ScrollViewer>
                 </Grid>
 
                 <Grid x:Name="SettingsPage"
