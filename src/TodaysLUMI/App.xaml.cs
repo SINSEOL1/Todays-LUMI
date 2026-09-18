@@ -12,6 +12,12 @@ public partial class App : System.Windows.Application
 
         _mainWindow = new MainWindow();
         MainWindow = _mainWindow;
+
         _mainWindow.Show();
+
+        if (e.Args.Any(arg => arg.Equals("--tray", StringComparison.OrdinalIgnoreCase)))
+        {
+            _mainWindow.Dispatcher.BeginInvoke(() => _mainWindow.Hide());
+        }
     }
 }
