@@ -39,7 +39,6 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         _settings = _settingsService.Load();
-        _startupService.Apply(_settings.StartWithWindows);
 
         var version = Assembly.GetExecutingAssembly().GetName().Version;
         var versionText = version is null
@@ -58,24 +57,21 @@ public partial class MainWindow : Window
 
         SourceInitialized += MainWindow_SourceInitialized;
 
+        _recognitionMonitor = new LumiRecognitionMonitor(() => _settings.AutoRecognition);
+
         _gameMonitor.RunningStateChanged += (_, running) =>
             Dispatcher.Invoke(() => UpdateGameState(running));
-        _gameMonitor.Start();
 
-        _recognitionMonitor = new LumiRecognitionMonitor(() => _settings.AutoRecognition);
         _recognitionMonitor.ItemDetected += (_, item) =>
             Dispatcher.Invoke(() => ApplyDetectedItem(item));
-        _recognitionMonitor.Start();
 
         _lobbyMonitor.LobbyEntered += (_, _) =>
             Dispatcher.Invoke(HandleLobbyEntered);
-        _lobbyMonitor.Start();
 
         _matchTransitionMonitor.MatchEnding += (_, _) =>
             Dispatcher.Invoke(HandleMatchEnding);
         _matchTransitionMonitor.MatchHudReturned += (_, _) =>
             Dispatcher.Invoke(HandleMatchHudReturned);
-        _matchTransitionMonitor.Start();
 
         _trayIcon = new Forms.NotifyIcon
         {
@@ -103,9 +99,46 @@ public partial class MainWindow : Window
         _trayIcon.ContextMenuStrip = menu;
 
         Closing += MainWindow_Closing;
+        Loaded += MainWindow_Loaded;
 
         UpdateShortcutLabels();
         UpdateOverlayRuntimeUi();
+    }
+
+    private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            _gameMonitor.Start();
+        }
+        catch
+        {
+            // Individual monitors are optional; one failure must not close the app.
+        }
+
+        try
+        {
+            _recognitionMonitor.Start();
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            _lobbyMonitor.Start();
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            _matchTransitionMonitor.Start();
+        }
+        catch
+        {
+        }
     }
 
     private void MainWindow_SourceInitialized(object? sender, EventArgs e)
@@ -453,8 +486,14 @@ public partial class MainWindow : Window
 
     private void GeneralSetting_Changed(object sender, RoutedEventArgs e)
     {
+        if (_loadingSettings)
+            return;
+
+        var previousStartup = _settings.StartWithWindows;
         SaveSettingsFromUi();
-        _startupService.Apply(_settings.StartWithWindows);
+
+        if (previousStartup != _settings.StartWithWindows)
+            _startupService.Apply(_settings.StartWithWindows);
     }
 
     private void OverlayScaleSlider_ValueChanged(
