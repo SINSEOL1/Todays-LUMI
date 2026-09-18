@@ -18,6 +18,7 @@ public partial class MainWindow : Window
     private readonly LobbyStateMonitor _lobbyMonitor = new();
     private readonly MatchTransitionMonitor _matchTransitionMonitor = new();
     private readonly StartupService _startupService = new();
+    private readonly UpdateService _updateService = new();
     private readonly Forms.NotifyIcon _trayIcon;
     private readonly LumiRecognitionMonitor _recognitionMonitor;
 
@@ -32,6 +33,9 @@ public partial class MainWindow : Window
     private bool _overlaySuppressedByMatchEnd;
     private bool _overlayPositionEditMode;
     private bool _capturingHotkey;
+    private bool _checkingForUpdates;
+    private bool _downloadingUpdate;
+    private UpdateInfo? _availableUpdate;
     private string _hotkeyBeforeCapture = string.Empty;
 
     public MainWindow()
@@ -139,6 +143,9 @@ public partial class MainWindow : Window
         catch
         {
         }
+
+        if (_settings.AutoCheckUpdates)
+            _ = CheckForUpdatesAsync(userInitiated: false);
     }
 
     private void MainWindow_SourceInitialized(object? sender, EventArgs e)
@@ -692,6 +699,119 @@ public partial class MainWindow : Window
             Math.Clamp(_settings.OverlayPositionYRatio, 0.0, 1.0) * areaHeight;
     }
 
+    private async void UpdateActionButton_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (_checkingForUpdates || _downloadingUpdate)
+            return;
+
+        if (_availableUpdate is null)
+        {
+            await CheckForUpdatesAsync(userInitiated: true);
+            return;
+        }
+
+        if (_currentDetectedItem is not null && !_overlaySuppressedByMatchEnd)
+        {
+            System.Windows.MessageBox.Show(
+                "게임이 끝난 뒤 업데이트를 설치해 주세요.",
+                "오늘의 루미",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        await DownloadAndInstallUpdateAsync(_availableUpdate);
+    }
+
+    private async Task CheckForUpdatesAsync(bool userInitiated)
+    {
+        if (_checkingForUpdates || _downloadingUpdate)
+            return;
+
+        _checkingForUpdates = true;
+        UpdateActionButton.IsEnabled = false;
+        UpdateStatusText.Text = "업데이트 확인 중...";
+
+        try
+        {
+            _availableUpdate = await _updateService.CheckForUpdateAsync();
+
+            if (_availableUpdate is null)
+            {
+                UpdateStatusText.Text = userInitiated
+                    ? "현재 최신 버전입니다."
+                    : "최신 버전을 사용 중입니다.";
+
+                UpdateActionButton.Content = "업데이트 확인";
+                return;
+            }
+
+            UpdateStatusText.Text =
+                $"v{_availableUpdate.VersionText} 업데이트를 사용할 수 있습니다.";
+
+            UpdateActionButton.Content = "업데이트";
+        }
+        catch
+        {
+            UpdateStatusText.Text = userInitiated
+                ? "업데이트를 확인하지 못했습니다."
+                : "자동 업데이트 확인에 실패했습니다.";
+
+            _availableUpdate = null;
+            UpdateActionButton.Content = "다시 확인";
+        }
+        finally
+        {
+            _checkingForUpdates = false;
+            UpdateActionButton.IsEnabled = true;
+        }
+    }
+
+    private async Task DownloadAndInstallUpdateAsync(UpdateInfo update)
+    {
+        _downloadingUpdate = true;
+        UpdateActionButton.IsEnabled = false;
+        UpdateProgressBar.Visibility = Visibility.Visible;
+        UpdateProgressBar.Value = 0;
+        UpdateStatusText.Text = $"v{update.VersionText} 다운로드 중...";
+
+        try
+        {
+            var progress = new Progress<double>(value =>
+            {
+                UpdateProgressBar.Value = value * 100;
+                UpdateStatusText.Text =
+                    $"v{update.VersionText} 다운로드 중... {Math.Round(value * 100):0}%";
+            });
+
+            var installerPath =
+                await _updateService.DownloadInstallerAsync(update, progress);
+
+            UpdateStatusText.Text = "업데이트 설치를 시작합니다.";
+
+            if (!_updateService.LaunchInstaller(installerPath))
+            {
+                UpdateStatusText.Text = "업데이트 설치 프로그램을 실행하지 못했습니다.";
+                return;
+            }
+
+            await Task.Delay(300);
+            ExitApplication();
+        }
+        catch
+        {
+            UpdateStatusText.Text = "업데이트 다운로드에 실패했습니다.";
+        }
+        finally
+        {
+            _downloadingUpdate = false;
+            UpdateActionButton.IsEnabled = true;
+            UpdateProgressBar.Visibility = Visibility.Collapsed;
+        }
+    }
+
     private void HotkeyCaptureButton_Click(object sender, RoutedEventArgs e)
     {
         _capturingHotkey = true;
@@ -817,6 +937,7 @@ public partial class MainWindow : Window
         _matchTransitionMonitor.Dispose();
         _recognitionMonitor.Dispose();
         _hotkeyService.Dispose();
+        _updateService.Dispose();
 
         if (_overlayWindow is not null)
             _overlayWindow.Close();

@@ -431,56 +431,91 @@
                 <Grid x:Name="SettingsPage"
                       Visibility="Collapsed"
                       Margin="30,26">
-                    <StackPanel>
-                        <TextBlock Text="설정" Style="{StaticResource PageTitleStyle}"/>
-                        <TextBlock Text="프로그램 실행과 인식 동작을 설정합니다."
-                                   Style="{StaticResource PageSubtitleStyle}"/>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="0,0,4,18">
+                            <TextBlock Text="설정" Style="{StaticResource PageTitleStyle}"/>
+                            <TextBlock Text="프로그램 실행과 인식 동작을 설정합니다."
+                                       Style="{StaticResource PageSubtitleStyle}"/>
 
-                        <Border Margin="0,22,0,0" Style="{StaticResource CardStyle}">
-                            <StackPanel>
-                                <TextBlock Text="일반" Style="{StaticResource SectionTitleStyle}"/>
+                            <Border Margin="0,22,0,0" Style="{StaticResource CardStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="일반" Style="{StaticResource SectionTitleStyle}"/>
 
-                                <CheckBox x:Name="StartWithWindowsCheckBox"
-                                          Content="Windows 시작 시 실행"
-                                          Margin="0,17,0,0"
-                                          Style="{StaticResource SwitchStyle}"
-                                          Checked="GeneralSetting_Changed"
-                                          Unchecked="GeneralSetting_Changed"/>
+                                    <CheckBox x:Name="StartWithWindowsCheckBox"
+                                              Content="Windows 시작 시 실행"
+                                              Margin="0,17,0,0"
+                                              Style="{StaticResource SwitchStyle}"
+                                              Checked="GeneralSetting_Changed"
+                                              Unchecked="GeneralSetting_Changed"/>
 
-                                <Border Height="1" Margin="0,13" Background="#EEF0F3"/>
+                                    <Border Height="1" Margin="0,13" Background="#EEF0F3"/>
 
-                                <CheckBox x:Name="CloseToTrayCheckBox"
-                                          Content="창을 닫으면 트레이로 최소화"
-                                          IsChecked="True"
-                                          Style="{StaticResource SwitchStyle}"
-                                          Checked="GeneralSetting_Changed"
-                                          Unchecked="GeneralSetting_Changed"/>
-                            </StackPanel>
-                        </Border>
+                                    <CheckBox x:Name="CloseToTrayCheckBox"
+                                              Content="창을 닫으면 트레이로 최소화"
+                                              IsChecked="True"
+                                              Style="{StaticResource SwitchStyle}"
+                                              Checked="GeneralSetting_Changed"
+                                              Unchecked="GeneralSetting_Changed"/>
+                                </StackPanel>
+                            </Border>
 
-                        <Border Margin="0,14,0,0" Style="{StaticResource CardStyle}">
-                            <StackPanel>
-                                <TextBlock Text="동작" Style="{StaticResource SectionTitleStyle}"/>
+                            <Border Margin="0,14,0,0" Style="{StaticResource CardStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="동작" Style="{StaticResource SectionTitleStyle}"/>
 
-                                <CheckBox x:Name="AutoRecognitionCheckBox"
-                                          Content="LUMI 판매 아이템 자동 인식"
-                                          Margin="0,17,0,0"
-                                          IsChecked="True"
-                                          Style="{StaticResource SwitchStyle}"
-                                          Checked="GeneralSetting_Changed"
-                                          Unchecked="GeneralSetting_Changed"/>
+                                    <CheckBox x:Name="AutoRecognitionCheckBox"
+                                              Content="LUMI 판매 아이템 자동 인식"
+                                              Margin="0,17,0,0"
+                                              IsChecked="True"
+                                              Style="{StaticResource SwitchStyle}"
+                                              Checked="GeneralSetting_Changed"
+                                              Unchecked="GeneralSetting_Changed"/>
 
-                                <Border Height="1" Margin="0,13" Background="#EEF0F3"/>
+                                    <Border Height="1" Margin="0,13" Background="#EEF0F3"/>
 
-                                <CheckBox x:Name="AutoUpdateCheckBox"
-                                          Content="새 버전 자동 확인"
-                                          IsChecked="True"
-                                          Style="{StaticResource SwitchStyle}"
-                                          Checked="GeneralSetting_Changed"
-                                          Unchecked="GeneralSetting_Changed"/>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
+                                    <CheckBox x:Name="AutoUpdateCheckBox"
+                                              Content="새 버전 자동 확인"
+                                              IsChecked="True"
+                                              Style="{StaticResource SwitchStyle}"
+                                              Checked="GeneralSetting_Changed"
+                                              Unchecked="GeneralSetting_Changed"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Margin="0,14,0,0" Style="{StaticResource CardStyle}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel>
+                                        <TextBlock Text="업데이트"
+                                                   Style="{StaticResource SectionTitleStyle}"/>
+                                        <TextBlock x:Name="UpdateStatusText"
+                                                   Text="새 버전을 확인할 수 있습니다."
+                                                   Margin="0,6,0,0"
+                                                   FontSize="11"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"/>
+                                        <ProgressBar x:Name="UpdateProgressBar"
+                                                     Margin="0,10,20,0"
+                                                     Height="4"
+                                                     Minimum="0"
+                                                     Maximum="100"
+                                                     Visibility="Collapsed"/>
+                                    </StackPanel>
+
+                                    <Button x:Name="UpdateActionButton"
+                                            Grid.Column="1"
+                                            Content="업데이트 확인"
+                                            VerticalAlignment="Center"
+                                            Style="{StaticResource SecondaryButtonStyle}"
+                                            Click="UpdateActionButton_Click"/>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
                 </Grid>
 
                 <Grid x:Name="AboutPage"

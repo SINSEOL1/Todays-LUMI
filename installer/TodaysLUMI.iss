@@ -5,12 +5,16 @@
 #define MyAppName "오늘의 루미"
 #define MyAppPublisher "SINSEOL"
 #define MyAppExeName "TodaysLUMI.exe"
+#define MyAppUrl "https://github.com/SINSEOL1/Todays-LUMI"
 
 [Setup]
 AppId={{C9B48A88-6781-48F1-B688-4D1CF6F771C7}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
+AppPublisherURL={#MyAppUrl}
+AppSupportURL={#MyAppUrl}
+AppUpdatesURL={#MyAppUrl}/releases
 DefaultDirName={localappdata}\Programs\TodaysLUMI
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
@@ -23,6 +27,12 @@ WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayName={#MyAppName}
+UninstallDisplayIcon={app}\{#MyAppExeName}
+VersionInfoVersion={#MyAppVersion}.0
+VersionInfoProductVersion={#MyAppVersion}
+VersionInfoProductName={#MyAppName}
+CloseApplications=yes
+RestartApplications=no
 
 [Files]
 Source: "..\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -35,4 +45,4 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 Name: "desktopicon"; Description: "바탕화면 바로가기 만들기"; GroupDescription: "추가 아이콘:"; Flags: unchecked
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "오늘의 루미 실행"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Flags: nowait

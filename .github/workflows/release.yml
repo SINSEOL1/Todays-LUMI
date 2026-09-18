@@ -16,11 +16,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Read version
+      - name: Read and validate version
         id: version
         shell: pwsh
         run: |
-          $version = "${{ github.ref_name }}".TrimStart("v")
+          $tag = "${{ github.ref_name }}"
+
+          if ($tag -notmatch '^v([0-9]+)\.([0-9]+)\.([0-9]+)$') {
+            throw "Release tag must use vA.B.C format. Example: v1.0.0"
+          }
+
+          $version = $tag.Substring(1)
           "value=$version" >> $env:GITHUB_OUTPUT
 
       - name: Setup .NET
@@ -35,6 +41,8 @@ jobs:
             --configuration Release `
             --runtime win-x64 `
             --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
             -p:Version=${{ steps.version.outputs.value }} `
             -p:AssemblyVersion=${{ steps.version.outputs.value }}.0 `
             -p:FileVersion=${{ steps.version.outputs.value }}.0 `
@@ -51,18 +59,22 @@ jobs:
             "/DMyAppVersion=${{ steps.version.outputs.value }}" `
             "installer\TodaysLUMI.iss"
 
-      - name: Create checksum
+      - name: Create SHA-256
         shell: pwsh
         run: |
-          $file = "installer\output\TodaysLUMI-Setup-v${{ steps.version.outputs.value }}.exe"
+          $version = "${{ steps.version.outputs.value }}"
+          $file = "installer\output\TodaysLUMI-Setup-v$version.exe"
+          $checksumFile = "installer\output\TodaysLUMI-Setup-v$version.sha256.txt"
           $hash = (Get-FileHash $file -Algorithm SHA256).Hash.ToLower()
-          "$hash  TodaysLUMI-Setup-v${{ steps.version.outputs.value }}.exe" |
-            Out-File -Encoding ascii "installer\output\checksums.txt"
+
+          "$hash  TodaysLUMI-Setup-v$version.exe" |
+            Out-File -Encoding ascii $checksumFile
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          name: 오늘의 루미 v${{ steps.version.outputs.value }}
           generate_release_notes: true
           files: |
             installer/output/TodaysLUMI-Setup-v${{ steps.version.outputs.value }}.exe
-            installer/output/checksums.txt
+            installer/output/TodaysLUMI-Setup-v${{ steps.version.outputs.value }}.sha256.txt
