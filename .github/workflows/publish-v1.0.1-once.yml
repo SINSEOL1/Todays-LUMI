@@ -1,0 +1,65 @@
+name: Publish v1.0.1
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/publish-v1.0.1-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout v1.0.1
+        uses: actions/checkout@v4
+        with:
+          ref: v1.0.1
+
+      - name: Checkout release notes
+        shell: pwsh
+        run: |
+          git show origin/main:RELEASE_NOTES_v1.0.1.md | Out-File -Encoding utf8 RELEASE_NOTES_v1.0.1.md
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Publish
+        shell: pwsh
+        run: |
+          dotnet publish src/TodaysLUMI/TodaysLUMI.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:Version=1.0.1 `
+            -p:AssemblyVersion=1.0.1.0 `
+            -p:FileVersion=1.0.1.0 `
+            --output publish
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
+            "/DMyAppVersion=1.0.1" `
+            "installer\TodaysLUMI.iss"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.1
+          name: 오늘의 루미 v1.0.1
+          body_path: RELEASE_NOTES_v1.0.1.md
+          files: installer/output/TodaysLUMI-Setup-v1.0.1.exe
+          make_latest: true
