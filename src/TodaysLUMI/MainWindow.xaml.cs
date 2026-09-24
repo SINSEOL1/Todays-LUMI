@@ -62,7 +62,10 @@ public partial class MainWindow : Window
 
         SourceInitialized += MainWindow_SourceInitialized;
 
-        _recognitionMonitor = new LumiRecognitionMonitor(() => _settings.AutoRecognition);
+        // Lobby and matchmaking share UI elements. Scan chat only while the
+        // actual in-game HUD is visible, before an item has been confirmed.
+        _recognitionMonitor = new LumiRecognitionMonitor(
+            () => _settings.AutoRecognition && _matchTransitionMonitor.IsInMatch);
 
         _gameMonitor.RunningStateChanged += (_, running) =>
             Dispatcher.Invoke(() => UpdateGameState(running));
