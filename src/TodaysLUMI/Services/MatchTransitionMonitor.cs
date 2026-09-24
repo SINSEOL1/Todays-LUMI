@@ -16,6 +16,8 @@ public sealed class MatchTransitionMonitor : IDisposable
     private bool _hudLost;
     private int _missingHits;
 
+    public bool IsInMatch => _hudSeen && !_hudLost && _missingHits == 0;
+
     public event EventHandler? MatchEnding;
     public event EventHandler? MatchHudReturned;
 

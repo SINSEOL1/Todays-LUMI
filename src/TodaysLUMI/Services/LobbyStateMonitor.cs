@@ -15,6 +15,8 @@ public sealed class LobbyStateMonitor : IDisposable
     private int _lobbyHits;
     private bool _isLobby;
 
+    public bool IsLobby => _isLobby;
+
     public event EventHandler? LobbyEntered;
 
     public LobbyStateMonitor()
@@ -57,9 +59,9 @@ public sealed class LobbyStateMonitor : IDisposable
 
         _lobbyHits++;
 
-        // Require two consecutive detections so a bright in-game frame cannot
-        // accidentally clear the current LUMI item.
-        if (_lobbyHits < 2 || _isLobby)
+        // Require a sustained lobby before unlocking recognition for the next
+        // match. Brief bright frames and chat effects are not enough.
+        if (_lobbyHits < 5 || _isLobby)
             return;
 
         _isLobby = true;

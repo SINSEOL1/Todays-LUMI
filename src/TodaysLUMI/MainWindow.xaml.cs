@@ -31,6 +31,7 @@ public partial class MainWindow : Window
     private bool _loadingSettings = true;
     private bool _overlayHiddenByHotkey;
     private bool _overlaySuppressedByMatchEnd;
+    private bool _matchEnded;
     private bool _overlayPositionEditMode;
     private bool _capturingHotkey;
     private bool _checkingForUpdates;
@@ -61,7 +62,10 @@ public partial class MainWindow : Window
 
         SourceInitialized += MainWindow_SourceInitialized;
 
-        _recognitionMonitor = new LumiRecognitionMonitor(() => _settings.AutoRecognition);
+        // Lobby and matchmaking share UI elements. Scan chat only while the
+        // actual in-game HUD is visible, before an item has been confirmed.
+        _recognitionMonitor = new LumiRecognitionMonitor(
+            () => _settings.AutoRecognition && _matchTransitionMonitor.IsInMatch);
 
         _gameMonitor.RunningStateChanged += (_, running) =>
             Dispatcher.Invoke(() => UpdateGameState(running));
@@ -233,6 +237,16 @@ public partial class MainWindow : Window
 
     private void HandleMatchEnding()
     {
+        _matchEnded = true;
+
+        // The lobby detector may have confirmed the lobby before the HUD
+        // monitor finished confirming that the match ended.
+        if (_lobbyMonitor.IsLobby)
+        {
+            HandleLobbyEntered();
+            return;
+        }
+
         if (_currentDetectedItem is null)
             return;
 
@@ -243,6 +257,8 @@ public partial class MainWindow : Window
 
     private void HandleMatchHudReturned()
     {
+        _matchEnded = false;
+
         if (!_overlaySuppressedByMatchEnd)
             return;
 
@@ -261,6 +277,12 @@ public partial class MainWindow : Window
 
     private void HandleLobbyEntered()
     {
+        // A bright in-game screen can resemble the lobby. Never unlock the
+        // confirmed item until the in-game HUD has actually gone away.
+        if (!_matchEnded)
+            return;
+
+        _matchEnded = false;
         _overlaySuppressedByMatchEnd = false;
         _matchTransitionMonitor.Reset();
         _currentDetectedItem = null;
@@ -273,6 +295,11 @@ public partial class MainWindow : Window
 
     private void ApplyDetectedItem(LumiItem item)
     {
+        // Once recognized, the item belongs to this match. Later chat pings
+        // cannot replace it, even if a scan callback was already queued.
+        if (_currentDetectedItem is not null)
+            return;
+
         _overlaySuppressedByMatchEnd = false;
         _currentDetectedItem = item;
         CurrentItemText.Text = item.Name;
